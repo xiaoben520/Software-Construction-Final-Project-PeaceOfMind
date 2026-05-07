@@ -13,6 +13,9 @@ public class SettingsViewModel : ViewModelBase
     private readonly IAppSettingsStore settingsStore;
     private MainViewModel? mainViewModel;
     private string apiKey = string.Empty;
+    private string aiBaseUrl = "https://api.openai.com/v1";
+    private string aiModel = "gpt-3.5-turbo";
+    private string aiPersona = "你是一个温和、会倾听、会整理事项的 AI 心灵伙伴。说话简洁、友好、有共情，优先帮用户把事情理清。";
     private bool enableAi;
     private bool enableReminder = true;
     private int reminderHour = 20;
@@ -41,6 +44,36 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             apiKey = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string AiBaseUrl
+    {
+        get => aiBaseUrl;
+        set
+        {
+            aiBaseUrl = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string AiModel
+    {
+        get => aiModel;
+        set
+        {
+            aiModel = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string AiPersona
+    {
+        get => aiPersona;
+        set
+        {
+            aiPersona = value;
             OnPropertyChanged();
         }
     }
@@ -143,11 +176,17 @@ public class SettingsViewModel : ViewModelBase
     {
         var settings = await settingsStore.LoadAsync();
         ApiKey = settings.ApiKey;
+        AiBaseUrl = string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl;
+        AiModel = string.IsNullOrWhiteSpace(settings.AiModel) ? "gpt-3.5-turbo" : settings.AiModel;
+        AiPersona = string.IsNullOrWhiteSpace(settings.AiPersona)
+            ? "你是一个温和、会倾听、会整理事项的 AI 心灵伙伴。说话简洁、友好、有共情，优先帮用户把事情理清。"
+            : settings.AiPersona;
         EnableAi = settings.EnableAi;
         EnableReminder = settings.EnableReminder;
         ReminderHour = settings.ReminderHour;
         Theme = App.NormalizeTheme(settings.Theme);
         ApplySavedVisibility(settings);
+        RefreshSettingsAwarePages(settings);
         StatusMessage = "已从本地配置文件加载设置。";
     }
 
@@ -156,6 +195,9 @@ public class SettingsViewModel : ViewModelBase
         var settings = new UserSettings
         {
             ApiKey = ApiKey,
+            AiBaseUrl = AiBaseUrl,
+            AiModel = AiModel,
+            AiPersona = AiPersona,
             EnableAi = EnableAi,
             EnableReminder = EnableReminder,
             ReminderHour = ReminderHour,
@@ -288,5 +330,21 @@ public class SettingsViewModel : ViewModelBase
         mainViewModel.ApplyLayout(
             SidebarOptions.Where(option => option.IsSelected).Select(option => option.Id),
             HomeOptions.Where(option => option.IsSelected).Select(option => option.Id));
+    }
+
+    private void RefreshSettingsAwarePages(UserSettings settings)
+    {
+        if (mainViewModel is null)
+        {
+            return;
+        }
+
+        foreach (var page in mainViewModel.AllPages)
+        {
+            if (page.PageViewModel is ISettingsAwareViewModel settingsAwareViewModel)
+            {
+                settingsAwareViewModel.ApplySettings(settings);
+            }
+        }
     }
 }

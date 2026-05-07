@@ -8,42 +8,145 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+        <!-- Add Task Panel -->
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
             <StackPanel>
                 <TextBlock Text="任务看板" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" />
-                <TextBlock Text="在这里先做一个最小可用的任务管理页。" Margin="0,8,0,16" Foreground="{DynamicResource SecondaryTextBrush}" />
-                <TextBlock Text="{Binding StatusMessage}" Margin="0,0,0,16" Foreground="{DynamicResource SecondaryTextBrush}" />
+                <TextBlock Text="{Binding StatusMessage}" Margin="0,8,0,12" Foreground="{DynamicResource SecondaryTextBrush}" />
                 <WrapPanel>
-                    <TextBox Width="260" Margin="0,0,12,0" Padding="10,6" Text="{Binding NewTaskTitle, UpdateSourceTrigger=PropertyChanged}" />
-                    <DatePicker Width="160" Margin="0,0,12,0" SelectedDate="{Binding NewTaskDueDate}" />
-                    <ComboBox Width="100" Margin="0,0,12,0" SelectedItem="{Binding NewTaskPriority}" VerticalContentAlignment="Center">
+                    <TextBox Width="260" Margin="0,0,10,0" Padding="10,6"
+                             Text="{Binding NewTaskTitle, UpdateSourceTrigger=PropertyChanged}" />
+                    <DatePicker Width="160" Margin="0,0,10,0"
+                                SelectedDate="{Binding NewTaskDueDate}" />
+                    <ComboBox Width="100" Margin="0,0,10,0"
+                              SelectedItem="{Binding NewTaskPriority}"
+                              VerticalContentAlignment="Center">
                         <sys:String>低</sys:String>
                         <sys:String>中</sys:String>
                         <sys:String>高</sys:String>
                     </ComboBox>
-                    <Button Content="添加任务" Padding="18,8" Style="{StaticResource SidebarButtonStyle}" Command="{Binding AddTaskCommand}" />
+                    <Button Content="+ 添加任务" Padding="18,8"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Command="{Binding AddTaskCommand}" />
                 </WrapPanel>
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="1" Style="{StaticResource CardStyle}">
-            <ListView ItemsSource="{Binding Tasks}" BorderThickness="0">
+        <!-- Edit Panel (visible when editing) -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,12"
+                Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+                <TextBlock Text="编辑任务" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
+                <WrapPanel>
+                    <TextBox Width="240" Margin="0,0,10,0" Padding="10,6"
+                             Text="{Binding EditTitle, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox Width="200" Margin="0,0,10,0" Padding="10,6"
+                             Text="{Binding EditDescription, UpdateSourceTrigger=PropertyChanged}" />
+                    <DatePicker Width="150" Margin="0,0,10,0"
+                                SelectedDate="{Binding EditDueDate}" />
+                    <ComboBox Width="100" Margin="0,0,10,0"
+                              SelectedItem="{Binding EditPriority}"
+                              VerticalContentAlignment="Center">
+                        <sys:String>低</sys:String>
+                        <sys:String>中</sys:String>
+                        <sys:String>高</sys:String>
+                    </ComboBox>
+                    <ComboBox Width="100" Margin="0,0,10,0"
+                              SelectedItem="{Binding EditStatus}"
+                              VerticalContentAlignment="Center">
+                        <sys:String>Todo</sys:String>
+                        <sys:String>Doing</sys:String>
+                        <sys:String>Done</sys:String>
+                    </ComboBox>
+                </WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <Button Content="保存" Padding="16,8" Margin="0,0,10,0"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Command="{Binding SaveEditCommand}" />
+                    <Button Content="取消" Padding="16,8"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Command="{Binding CancelEditCommand}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Filter Bar -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,12"
+                Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}">
+            <StackPanel>
+                <WrapPanel x:Name="FilterBar">
+                    <TextBlock Text="筛选：" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" />
+                    <ComboBox Width="120" ItemsSource="{Binding StatusFilterOptions}"
+                              SelectedItem="{Binding StatusFilter}"
+                              VerticalContentAlignment="Center" />
+                    <Button Content="应用筛选" Padding="12,6" Margin="10,0,0,0"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Command="{Binding FilterCommand}" />
+                </WrapPanel>
+                <WrapPanel Margin="0,10,0,0" x:Name="ActionBar">
+                    <Button Content="✅ 完成" Padding="12,6" Margin="0,0,10,0"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Command="{Binding CompleteTaskCommand}" />
+                    <Button Content="✏️ 编辑" Padding="12,6" Margin="0,0,10,0"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Command="{Binding StartEditCommand}" />
+                    <Button Content="🗑 删除" Padding="12,6"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Command="{Binding DeleteTaskCommand}" />
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Task List -->
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}">
+            <ListView ItemsSource="{Binding FilteredTasks}"
+                      SelectedItem="{Binding SelectedTask}"
+                      BorderThickness="0">
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Border Padding="12" Margin="0,0,0,10" Background="{DynamicResource ListItemBrush}" CornerRadius="10">
+                        <Border Padding="12" Margin="0,0,0,10"
+                                Background="{DynamicResource ListItemBrush}" CornerRadius="10">
                             <StackPanel>
                                 <DockPanel>
-                                    <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" DockPanel.Dock="Left" />
-                                    <TextBlock Text="{Binding Status}" Foreground="{DynamicResource SecondaryTextBrush}" DockPanel.Dock="Right" />
+                                    <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold"
+                                               DockPanel.Dock="Left" />
+                                    <Border CornerRadius="6" Padding="6,2" DockPanel.Dock="Right">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Status}" Value="Done">
+                                                        <Setter Property="Background" Value="#4CAF50" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Status}" Value="Doing">
+                                                        <Setter Property="Background" Value="#FF9800" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Status}" Value="Todo">
+                                                        <Setter Property="Background" Value="#2196F3" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding Status}" Foreground="White" FontSize="11" />
+                                    </Border>
                                 </DockPanel>
-                                <TextBlock Text="{Binding Description}" Margin="0,6,0,0" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" />
-                                <TextBlock Margin="0,6,0,0" Foreground="{DynamicResource SecondaryTextBrush}">
-                                    <Run Text="截止：" />
-                                    <Run Text="{Binding DueDate, StringFormat={}{0:yyyy-MM-dd}}" />
-                                </TextBlock>
+                                <TextBlock Text="{Binding Description}" Margin="0,6,0,0"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           TextWrapping="Wrap" />
+                                <DockPanel Margin="0,6,0,0">
+                                    <TextBlock Foreground="{DynamicResource SecondaryTextBrush}">
+                                        <Run Text="截止：" />
+                                        <Run Text="{Binding DueDate, StringFormat={}{0:yyyy-MM-dd}}" />
+                                    </TextBlock>
+                                    <TextBlock Foreground="{DynamicResource SecondaryTextBrush}"
+                                               DockPanel.Dock="Right">
+                                        <Run Text="优先级：" />
+                                        <Run Text="{Binding Priority}" />
+                                    </TextBlock>
+                                </DockPanel>
                             </StackPanel>
                         </Border>
                     </DataTemplate>

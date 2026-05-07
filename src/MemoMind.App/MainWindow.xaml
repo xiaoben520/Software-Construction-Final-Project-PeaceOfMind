@@ -25,6 +25,9 @@
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <views:SettingsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CyberPlantViewModel}">
+            <views:CyberPlantView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>

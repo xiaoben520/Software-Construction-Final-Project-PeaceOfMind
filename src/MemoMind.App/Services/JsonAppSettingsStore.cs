@@ -14,19 +14,26 @@ public class JsonAppSettingsStore : IAppSettingsStore
         this.settingsFilePath = settingsFilePath;
     }
 
-    public async Task<UserSettings> LoadAsync()
+    public Task<UserSettings> LoadAsync()
     {
         if (!File.Exists(settingsFilePath))
         {
-            return new UserSettings();
+            return Task.FromResult(new UserSettings());
         }
 
-        await using var stream = File.OpenRead(settingsFilePath);
-        var settings = await JsonSerializer.DeserializeAsync<UserSettings>(stream);
-        return settings ?? new UserSettings();
+        try
+        {
+            var json = File.ReadAllText(settingsFilePath);
+            var settings = JsonSerializer.Deserialize<UserSettings>(json);
+            return Task.FromResult(settings ?? new UserSettings());
+        }
+        catch
+        {
+            return Task.FromResult(new UserSettings());
+        }
     }
 
-    public async Task SaveAsync(UserSettings settings)
+    public Task SaveAsync(UserSettings settings)
     {
         var directory = Path.GetDirectoryName(settingsFilePath);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -34,7 +41,8 @@ public class JsonAppSettingsStore : IAppSettingsStore
             Directory.CreateDirectory(directory);
         }
 
-        await using var stream = File.Create(settingsFilePath);
-        await JsonSerializer.SerializeAsync(stream, settings, serializerOptions);
+        var json = JsonSerializer.Serialize(settings, serializerOptions);
+        File.WriteAllText(settingsFilePath, json);
+        return Task.CompletedTask;
     }
 }

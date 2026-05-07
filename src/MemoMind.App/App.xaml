@@ -8,6 +8,8 @@
                 <ResourceDictionary Source="Resources/Themes/Theme.Light.xaml" />
                 <ResourceDictionary Source="Resources/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"
+                xmlns:converters="clr-namespace:MemoMind.App.Converters" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

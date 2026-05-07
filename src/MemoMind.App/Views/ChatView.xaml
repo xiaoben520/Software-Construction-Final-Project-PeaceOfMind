@@ -13,25 +13,37 @@
         <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
             <DockPanel>
                 <TextBlock Text="AI 聊天" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" DockPanel.Dock="Top" />
-                <ListBox ItemsSource="{Binding Messages}" BorderThickness="0" Background="Transparent" Margin="0,16,0,0">
+                <TextBlock Text="{Binding AiStatus}" Margin="0,4,0,10" Foreground="{DynamicResource SecondaryTextBrush}" DockPanel.Dock="Top" FontSize="12" />
+                <ListBox ItemsSource="{Binding Messages}" BorderThickness="0" Background="Transparent" Margin="0,8,0,0">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border Margin="0,0,0,10" Padding="12" Background="{DynamicResource ListItemBrush}" CornerRadius="10">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding Sender}" FontWeight="SemiBold" />
+                                    <DockPanel>
+                                        <TextBlock Text="{Binding Sender}" FontWeight="SemiBold" DockPanel.Dock="Left" />
+                                        <TextBlock Text="{Binding Time, StringFormat={}{0:HH:mm}}" FontSize="11"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}" DockPanel.Dock="Right" />
+                                    </DockPanel>
                                     <TextBlock Text="{Binding Content}" Margin="0,6,0,0" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+                <TextBlock Text="正在输入..." Margin="0,4,0,0" Foreground="{DynamicResource SecondaryTextBrush}"
+                           FontStyle="Italic" FontSize="12" DockPanel.Dock="Bottom"
+                           Visibility="{Binding IsSending, Converter={StaticResource BoolToVisibilityConverter}}" />
             </DockPanel>
         </Border>
 
         <Border Grid.Row="1" Style="{StaticResource CardStyle}">
             <DockPanel>
-                <Button Content="发送" Width="90" Margin="12,0,0,0" Style="{StaticResource SidebarButtonStyle}" Command="{Binding SendCommand}" DockPanel.Dock="Right" />
-                <TextBox Height="42" Padding="10,8" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Content="发送" Width="90" Margin="12,0,0,0"
+                        Style="{StaticResource SidebarButtonStyle}"
+                        Command="{Binding SendCommand}" DockPanel.Dock="Right" />
+                <TextBox Height="42" Padding="10,8"
+                         Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                         KeyDown="ChatInput_KeyDown" />
             </DockPanel>
         </Border>
     </Grid>

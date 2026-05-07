@@ -35,12 +35,14 @@ public partial class App : Application
 		services.AddScoped<ITaskService, TaskService>();
 		services.AddScoped<IFileWorkspaceService, FileWorkspaceService>();
 		services.AddSingleton<IAppSettingsStore>(_ => new JsonAppSettingsStore(settingsFilePath));
+		services.AddSingleton<IChatService, ChatService>();
 		services.AddSingleton<MainViewModel>();
 		services.AddTransient<HomeViewModel>();
 		services.AddTransient<TaskBoardViewModel>();
 		services.AddTransient<ChatViewModel>();
 		services.AddTransient<FileWorkspaceViewModel>();
 		services.AddTransient<SettingsViewModel>();
+		services.AddTransient<CyberPlantViewModel>();
 		Services = services.BuildServiceProvider();
 
 		var settingsStore = Services.GetRequiredService<IAppSettingsStore>();

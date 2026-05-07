@@ -81,6 +81,7 @@ public class MainViewModel : ViewModelBase
         settings.SidebarPageIds = SidebarPages.Select(page => page.Id).ToList();
         settings.HomePageIds = HomePages.Select(page => page.Id).ToList();
         await settingsStore.SaveAsync(settings);
+        RefreshSettingsAwarePages(settings);
     }
 
     private void InitializePages()
@@ -153,6 +154,17 @@ public class MainViewModel : ViewModelBase
         foreach (var page in AllPages.Where(page => page.ShowOnHome))
         {
             HomePages.Add(page);
+        }
+    }
+
+    private void RefreshSettingsAwarePages(UserSettings settings)
+    {
+        foreach (var page in AllPages)
+        {
+            if (page.PageViewModel is ISettingsAwareViewModel settingsAwareViewModel)
+            {
+                settingsAwareViewModel.ApplySettings(settings);
+            }
         }
     }
 }

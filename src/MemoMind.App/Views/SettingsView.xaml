@@ -11,6 +11,41 @@
                 <TextBlock Text="设置" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" />
                 <TextBlock Text="{Binding StatusMessage}" Margin="0,8,0,16" Foreground="{DynamicResource SecondaryTextBrush}" />
 
+                <TextBlock Text="通用设置" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryTextBrush}" />
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="主题" />
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" SelectedItem="{Binding Theme}">
+                        <sys:String>Light</sys:String>
+                        <sys:String>Dark</sys:String>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="提醒小时" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
+                             Text="{Binding ReminderHour, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <CheckBox Grid.Row="2" Grid.Column="1" Content="启用每日提醒"
+                              IsChecked="{Binding EnableReminder}" />
+                </Grid>
+
+                <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,8,0,16" />
+
+                <TextBlock Text="AI 配置" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                <TextBlock Text="配置 AI 接口后，聊天和赛博植物模块就可以使用在线能力。" Margin="0,0,0,8"
+                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -20,33 +55,42 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="120" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="API Key" />
-                    <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,12" Padding="10,6" Text="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="API 地址" />
+                    <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
+                             Text="{Binding AiBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="主题" />
-                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,12" SelectedItem="{Binding Theme}">
-                        <sys:String>Light</sys:String>
-                        <sys:String>Dark</sys:String>
-                    </ComboBox>
+                    <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="模型" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
+                             Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}" />
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="提醒小时" />
-                    <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,12" Padding="10,6" Text="{Binding ReminderHour, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="API Key" />
+                    <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
+                             Text="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged}" />
 
-                    <CheckBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,8" Content="启用 AI" IsChecked="{Binding EnableAi}" />
-                    <CheckBox Grid.Row="4" Grid.Column="1" Content="启用每日提醒" IsChecked="{Binding EnableReminder}" />
+                    <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Top" Text="AI 人设" />
+                    <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" Padding="10,6" Height="90"
+                             AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                             Text="{Binding AiPersona, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <CheckBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,8" Content="启用 AI"
+                              IsChecked="{Binding EnableAi}" />
                 </Grid>
 
-                <TextBlock Text="左侧栏目显示" Margin="0,20,0,10" FontSize="18" FontWeight="SemiBold" />
+                <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,8,0,16" />
+
+                <TextBlock Text="左侧栏目显示" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                <TextBlock Text="控制在左侧导航栏中显示哪些页面。" Margin="0,0,0,8"
+                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
                 <ItemsControl ItemsSource="{Binding SidebarOptions}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,0,0,8">
-                                <CheckBox Content="{Binding Title}"
-                                          IsChecked="{Binding IsSelected}">
+                                <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected}">
                                     <CheckBox.Style>
                                         <Style TargetType="CheckBox">
                                             <Setter Property="IsEnabled" Value="True" />
@@ -58,27 +102,36 @@
                                         </Style>
                                     </CheckBox.Style>
                                 </CheckBox>
-                                <TextBlock Text="{Binding Description}" Margin="24,2,0,0" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+                                <TextBlock Text="{Binding Description}" Margin="24,2,0,0"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Text="主页模块显示" Margin="0,20,0,10" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock Text="主页模块显示" Margin="0,16,0,10" FontSize="18" FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                <TextBlock Text="控制在主页中显示哪些模块卡片。" Margin="0,0,0,8"
+                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
                 <ItemsControl ItemsSource="{Binding HomeOptions}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,0,0,8">
                                 <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected}" />
-                                <TextBlock Text="{Binding Description}" Margin="24,2,0,0" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+                                <TextBlock Text="{Binding Description}" Margin="24,2,0,0"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,16" />
+
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-                    <Button Content="重新加载" Margin="0,0,10,0" Padding="16,8" Style="{StaticResource SidebarButtonStyle}" Command="{Binding LoadCommand}" />
-                    <Button Content="保存设置" Padding="16,8" Style="{StaticResource SidebarButtonStyle}" Command="{Binding SaveCommand}" />
+                    <Button Content="重新加载" Margin="0,0,10,0" Padding="16,8"
+                            Style="{StaticResource SidebarButtonStyle}" Command="{Binding LoadCommand}" />
+                    <Button Content="保存设置" Padding="16,8"
+                            Style="{StaticResource SidebarButtonStyle}" Command="{Binding SaveCommand}" />
                 </StackPanel>
             </StackPanel>
         </Border>

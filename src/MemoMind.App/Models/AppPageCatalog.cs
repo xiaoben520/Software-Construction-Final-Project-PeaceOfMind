@@ -45,6 +45,15 @@ public static class AppPageCatalog
         },
         new AppPageDefinition
         {
+            Id = "cyber-plant",
+            Title = "赛博植物",
+            Description = "领养一株虚拟植物，和它聊天、给它浇水。",
+            ViewModelType = typeof(CyberPlantViewModel),
+            DefaultInSidebar = true,
+            DefaultOnHome = true
+        },
+        new AppPageDefinition
+        {
             Id = "settings",
             Title = "设置",
             Description = "调整系统配置与页面可见性。",
