@@ -19,9 +19,10 @@ public class SettingsViewModel : ViewModelBase
     private bool enableAi;
     private bool enableReminder = true;
     private int reminderHour = 20;
-    private string theme = "Light";
+    private string theme = "System";
     private string statusMessage = "设置将保存到本地配置文件。";
     private bool suppressLayoutPreview;
+    private int selectedProviderIndex;
 
     public SettingsViewModel()
         : this(App.Services.GetRequiredService<IAppSettingsStore>())
@@ -33,6 +34,9 @@ public class SettingsViewModel : ViewModelBase
         this.settingsStore = settingsStore;
         SidebarOptions = [];
         HomeOptions = [];
+        ThemeOptions = new ObservableCollection<string>(App.AllThemes);
+        ProviderOptions = new ObservableCollection<AiProviderPreset>(AiProviderPreset.All);
+        ModelOptions = new ObservableCollection<string>(AiProviderPreset.All[0].Models);
         SaveCommand = new RelayCommand(_ => Save());
         LoadCommand = new RelayCommand(_ => Load());
         _ = LoadAsync();
@@ -113,7 +117,7 @@ public class SettingsViewModel : ViewModelBase
         get => theme;
         set
         {
-            theme = App.NormalizeTheme(value);
+            theme = value;
             OnPropertyChanged();
             App.ApplyTheme(theme);
         }
@@ -129,8 +133,39 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
+    public int SelectedProviderIndex
+    {
+        get => selectedProviderIndex;
+        set
+        {
+            selectedProviderIndex = value;
+            OnPropertyChanged();
+
+            if (value >= 0 && value < ProviderOptions.Count)
+            {
+                var preset = ProviderOptions[value];
+                if (!string.IsNullOrWhiteSpace(preset.BaseUrl))
+                {
+                    AiBaseUrl = preset.BaseUrl;
+                }
+
+                ModelOptions.Clear();
+                foreach (var model in preset.Models)
+                {
+                    ModelOptions.Add(model);
+                }
+
+                AiModel = preset.Models.Count > 0 ? preset.Models[0] : string.Empty;
+            }
+        }
+    }
+
     public ICommand SaveCommand { get; }
     public ICommand LoadCommand { get; }
+
+    public ObservableCollection<string> ThemeOptions { get; }
+    public ObservableCollection<AiProviderPreset> ProviderOptions { get; }
+    public ObservableCollection<string> ModelOptions { get; }
 
     public ObservableCollection<PageVisibilityOptionViewModel> SidebarOptions { get; }
 
@@ -184,10 +219,47 @@ public class SettingsViewModel : ViewModelBase
         EnableAi = settings.EnableAi;
         EnableReminder = settings.EnableReminder;
         ReminderHour = settings.ReminderHour;
-        Theme = App.NormalizeTheme(settings.Theme);
+        Theme = string.IsNullOrWhiteSpace(settings.Theme) ? "System" : settings.Theme;
         ApplySavedVisibility(settings);
         RefreshSettingsAwarePages(settings);
+
+        SelectedProviderIndex = MatchProviderIndex(AiBaseUrl, AiModel);
         StatusMessage = "已从本地配置文件加载设置。";
+    }
+
+    private int MatchProviderIndex(string baseUrl, string model)
+    {
+        var bestIndex = 0;
+        var bestScore = 0;
+
+        for (var i = 0; i < ProviderOptions.Count; i++)
+        {
+            var preset = ProviderOptions[i];
+            var score = 0;
+            if (!string.IsNullOrWhiteSpace(preset.BaseUrl) &&
+                string.Equals(preset.BaseUrl.TrimEnd('/'), baseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+            {
+                score += 10;
+            }
+
+            if (preset.Models.Any(m => string.Equals(m, model, StringComparison.OrdinalIgnoreCase)))
+            {
+                score += 5;
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestIndex = i;
+            }
+        }
+
+        if (bestScore == 0)
+        {
+            return ProviderOptions.Count - 1;
+        }
+
+        return bestIndex;
     }
 
     private async Task SaveAsync()
@@ -201,7 +273,7 @@ public class SettingsViewModel : ViewModelBase
             EnableAi = EnableAi,
             EnableReminder = EnableReminder,
             ReminderHour = ReminderHour,
-            Theme = App.NormalizeTheme(Theme),
+            Theme = Theme,
             SidebarPageIds = SidebarOptions.Where(option => option.IsSelected).Select(option => option.Id).ToList(),
             HomePageIds = HomeOptions.Where(option => option.IsSelected).Select(option => option.Id).ToList()
         };

@@ -6,7 +6,7 @@
              mc:Ignorable="d">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="280" />
+            <ColumnDefinition Width="320" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
@@ -29,38 +29,116 @@
                             <TextBlock Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}">
                                 <Run Text="心情：" /><Run Text="{Binding Mood, Mode=OneWay}" />
                             </TextBlock>
+                            <TextBlock Text="{Binding WaterStatusDisplay, Mode=OneWay}" Margin="0,6,0,0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding NutritionStatusDisplay, Mode=OneWay}" Margin="0,2,0,0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding SunStatusDisplay, Mode=OneWay}" Margin="0,2,0,0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" />
                             <TextBlock Text="{Binding LastWateredDisplay, Mode=OneWay}" Margin="0,8,0,0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" />
-                            <Button Content="💧 浇水" Margin="0,12,0,0" Padding="20,8"
+                                    <WrapPanel Margin="0,12,0,0" HorizontalAlignment="Center">
+                                    <Button Content="💧 浇水" Margin="0,0,8,8" Padding="14,10" MinWidth="96" MinHeight="40"
                                     Style="{StaticResource SidebarButtonStyle}"
-                                    HorizontalAlignment="Center"
                                     Command="{Binding WaterCommand}" />
+                                    <Button Content="🌾 施肥" Margin="0,0,8,8" Padding="14,10" MinWidth="96" MinHeight="40"
+                                    Style="{StaticResource SidebarButtonStyle}"
+                                    Command="{Binding FertilizeCommand}" />
+                                    <Button Content="☀️ 晒太阳" Margin="0,0,0,8" Padding="14,10" MinWidth="96" MinHeight="40"
+                                    Style="{StaticResource SidebarButtonStyle}"
+                                    Command="{Binding SunCommand}" />
+                                </WrapPanel>
                         </StackPanel>
                     </Border>
 
                     <!-- Plant Type Selection -->
                     <TextBlock Text="选择植物" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
-                    <ItemsControl ItemsSource="{Binding PlantTypes}">
+                    <ItemsControl ItemsSource="{Binding PlantItems}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border Margin="0,0,0,8" Padding="10" CornerRadius="8"
                                         Background="{DynamicResource ListItemBrush}" Cursor="Hand"
                                         MouseLeftButtonDown="PlantType_Click">
-                                    <StackPanel>
-                                        <TextBlock FontSize="16">
-                                            <Run Text="{Binding Emoji}" /><Run Text="  " /><Run Text="{Binding Name}" />
-                                        </TextBlock>
-                                        <TextBlock Text="{Binding Personality}" Margin="0,2,0,0" FontSize="11"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    </StackPanel>
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsDeleted}" Value="True">
+                                                    <Setter Property="Opacity" Value="0.5" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock FontSize="16">
+                                                <Run Text="{Binding Emoji}" /><Run Text="  " /><Run Text="{Binding Name}" />
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding Personality}" Margin="0,2,0,0" FontSize="11"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                            <TextBlock Text="已隐藏" FontSize="10"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                                       Visibility="{Binding IsDeleted, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="⚙" Width="28" Height="28" Margin="8,0,0,0"
+                                            VerticalAlignment="Top" FontSize="12"
+                                            Background="Transparent" BorderThickness="0"
+                                            Foreground="{DynamicResource SecondaryTextBrush}"
+                                            Command="{Binding DataContext.OpenCustomEditorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" />
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <!-- Custom Name Input for Custom Plant -->
-                    <StackPanel Margin="0,12,0,0" Visibility="{Binding IsCustomPlant, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
-                        <TextBlock Text="给你的植物取个名字" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8" />
-                        <TextBox Padding="10,6" Text="{Binding PlantName, UpdateSourceTrigger=PropertyChanged}" />
+                    <!-- Custom Plant Editor -->
+                    <StackPanel Margin="0,14,0,0">
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock Text="自定义植物" FontSize="15" FontWeight="SemiBold" DockPanel.Dock="Left" />
+                            <Button Content="+ 添加" Padding="10,4" DockPanel.Dock="Right"
+                                    Style="{StaticResource SidebarButtonStyle}"
+                                    Command="{Binding AddCustomPlantCommand}" />
+                        </DockPanel>
+
+                        <Border Background="{DynamicResource ListItemBrush}" CornerRadius="10" Padding="10"
+                                Visibility="{Binding IsCustomEditorOpen, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                            <StackPanel>
+                                <TextBlock Text="植物名称" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                <TextBox Padding="10,6" Text="{Binding CustomEditName, UpdateSourceTrigger=PropertyChanged}" />
+
+                                <TextBlock Text="性格" FontSize="12" FontWeight="SemiBold" Margin="0,12,0,6" />
+                                <TextBox Padding="10,6" Text="{Binding CustomEditPersonality, UpdateSourceTrigger=PropertyChanged}" />
+
+                                <TextBlock Text="自定义 Prompt" FontSize="12" FontWeight="SemiBold" Margin="0,12,0,6" />
+                                <TextBox Padding="10,6" AcceptsReturn="True" TextWrapping="Wrap" Height="80"
+                                         Text="{Binding CustomEditPrompt, UpdateSourceTrigger=PropertyChanged}" />
+
+                                <TextBlock Text="聊天栏图片（本地文件）" FontSize="12" FontWeight="SemiBold" Margin="0,12,0,6" />
+                                <DockPanel>
+                                    <TextBlock Text="{Binding CustomEditImagePath}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" DockPanel.Dock="Left" />
+                                    <Button Content="选择文件" Padding="10,4" DockPanel.Dock="Right"
+                                            Style="{StaticResource SidebarButtonStyle}"
+                                            Click="SelectCustomImage_Click" />
+                                </DockPanel>
+
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="{Binding DeleteButtonText}" Padding="10,4" Margin="0,0,4,0"
+                                            Style="{StaticResource SidebarButtonStyle}"
+                                            Command="{Binding DeleteCustomPlantCommand}" />
+                                    <Button Grid.Column="1" Content="恢复初始" Padding="10,4" Margin="4,0,4,0"
+                                            Style="{StaticResource SidebarButtonStyle}"
+                                            Command="{Binding ResetSystemPlantCommand}" />
+                                    <Button Grid.Column="2" Content="保存" Padding="10,4" Margin="4,0,0,0"
+                                            Style="{StaticResource SidebarButtonStyle}"
+                                            Command="{Binding SaveCustomPlantCommand}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -75,11 +153,32 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Margin="0,0,0,12" FontSize="16" FontWeight="SemiBold"
-                           Text="{Binding PlantName, StringFormat='和 {0} 聊天', Mode=OneWay}" />
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Width="96" Height="96" CornerRadius="12" Background="{DynamicResource ListItemBrush}"
+                            ClipToBounds="True" Margin="0,0,12,0">
+                        <Grid>
+                            <TextBlock Text="{Binding PlantEmoji}" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                            <Image Source="{Binding PlantImageSource}" Stretch="UniformToFill" />
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock FontSize="16" FontWeight="SemiBold"
+                                   Text="{Binding PlantName, StringFormat='和 {0} 聊天', Mode=OneWay}" />
+                        <TextBlock Text="{Binding Mood, StringFormat='状态：{0}'}" Margin="0,6,0,0"
+                                   Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+                    </StackPanel>
+                </Grid>
 
                 <ListBox Grid.Row="1" ItemsSource="{Binding Messages}" BorderThickness="0"
                          Background="Transparent" Margin="0,0,0,12"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         HorizontalContentAlignment="Stretch"
                          x:Name="MessageListBox">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
@@ -92,6 +191,7 @@
                                                    Foreground="{DynamicResource SecondaryTextBrush}" DockPanel.Dock="Right" />
                                     </DockPanel>
                                     <TextBlock Text="{Binding Content}" Margin="0,6,0,0" TextWrapping="Wrap"
+                                               MaxWidth="{Binding ElementName=MessageListBox, Path=ActualWidth}"
                                                Foreground="{DynamicResource PrimaryTextBrush}" />
                                 </StackPanel>
                             </Border>

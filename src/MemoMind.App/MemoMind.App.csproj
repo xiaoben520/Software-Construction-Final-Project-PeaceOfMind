@@ -15,7 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Resources\Images\miner.png" />
-    <Resource Include="Resources\Images\vein.png" />
+ lym-1
+    <Content Include="Resources\PlantImages\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
   </ItemGroup>
 </Project>

@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<EmotionLog> EmotionLogs => Set<EmotionLog>();
     public DbSet<FileWorkspace> FileWorkspaces => Set<FileWorkspace>();
     public DbSet<PomodoroSession> PomodoroSessions => Set<PomodoroSession>();
+    public DbSet<CustomPlantProfile> CustomPlantProfiles => Set<CustomPlantProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,5 +25,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<EmotionLog>().HasKey(x => x.Id);
         modelBuilder.Entity<FileWorkspace>().HasKey(x => x.Id);
         modelBuilder.Entity<PomodoroSession>().HasKey(x => x.Id);
+        modelBuilder.Entity<CustomPlantProfile>().HasKey(x => x.Id);
     }
 }
