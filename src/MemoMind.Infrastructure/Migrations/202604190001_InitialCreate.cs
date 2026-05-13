@@ -86,7 +86,7 @@ public partial class InitialCreate : Migration
                     .Annotation("Sqlite:Autoincrement", true),
                 Title = table.Column<string>(type: "TEXT", nullable: false),
                 Description = table.Column<string>(type: "TEXT", nullable: false),
-                Priority = table.Column<int>(type: "INTEGER", nullable: false),
+                IsUrgent = table.Column<bool>(type: "INTEGER", nullable: false),
                 Status = table.Column<string>(type: "TEXT", nullable: false),
                 DueDate = table.Column<DateTime>(type: "TEXT", nullable: true),
                 CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),

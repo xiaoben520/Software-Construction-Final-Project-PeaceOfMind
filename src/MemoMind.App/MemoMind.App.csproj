@@ -13,4 +13,9 @@
     <ProjectReference Include="..\MemoMind.Core\MemoMind.Core.csproj" />
     <ProjectReference Include="..\MemoMind.Infrastructure\MemoMind.Infrastructure.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\Images\miner.png" />
+    <Resource Include="Resources\Images\vein.png" />
+  </ItemGroup>
 </Project>
