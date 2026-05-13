@@ -41,10 +41,9 @@ public class ChatService : IChatService
     private static readonly string ChatSystemPrompt =
         "你是一个温和的陪伴助手，名叫MemoMind。你的目标是先共情，再给出轻量建议。" +
         "不要进行诊断，不要进行说教，不要否定用户感受。" +
-        "回复应简短、自然、友好，使用鼓励式的语气。" +
+        "回复应自然、友好，使用鼓励式的语气。" +
         "如果用户表达了负面情绪，先承接情绪再表达理解，最后给出轻量建议。" +
-        "如果用户提到了任务或计划，可以温和地帮忙梳理。" +
-        "保持回复在100字以内。";
+        "如果用户提到了任务或计划，可以添加到其他模块对应的模块，同时温和地帮忙梳理。";
 
     public ChatService(IAppSettingsStore settingsStore)
     {
@@ -64,7 +63,7 @@ public class ChatService : IChatService
 
         if (!settings.EnableAi || string.IsNullOrWhiteSpace(settings.ApiKey))
         {
-            return GetOfflineResponse(inputText);
+            return GetOfflineResponse(inputText) + "\n\n（AI 功能不可用，请在设置中配置并启用 AI）";
         }
 
         try
@@ -73,7 +72,7 @@ public class ChatService : IChatService
         }
         catch
         {
-            return GetOfflineResponse(inputText) + "\n\n（提示：AI 服务暂时不可用，已切换到离线模式）";
+            return GetOfflineResponse(inputText) + "\n\n（AI 功能不可用，服务暂时无法连接，请检查网络或 API 配置）";
         }
     }
 

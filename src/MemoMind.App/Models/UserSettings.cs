@@ -9,7 +9,7 @@ public class UserSettings
     public bool EnableAi { get; set; } = false;
     public bool EnableReminder { get; set; } = true;
     public int ReminderHour { get; set; } = 20;
-    public string Theme { get; set; } = "Light";
+    public string Theme { get; set; } = "System";
     public List<string>? SidebarPageIds { get; set; }
     public List<string>? HomePageIds { get; set; }
 }

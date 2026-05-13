@@ -26,10 +26,9 @@
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="主题" />
-                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" SelectedItem="{Binding Theme}">
-                        <sys:String>Light</sys:String>
-                        <sys:String>Dark</sys:String>
-                    </ComboBox>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
+                              ItemsSource="{Binding ThemeOptions}"
+                              SelectedItem="{Binding Theme}" />
 
                     <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="提醒小时" />
                     <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
@@ -43,11 +42,13 @@
 
                 <TextBlock Text="AI 配置" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
                            Foreground="{DynamicResource PrimaryTextBrush}" />
-                <TextBlock Text="配置 AI 接口后，聊天和赛博植物模块就可以使用在线能力。" Margin="0,0,0,8"
+                <TextBlock Text="选择热门服务商自动填入 API 地址和模型，或选择「自定义」手动输入。" Margin="0,0,0,8"
                            Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
 
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -59,24 +60,32 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="API 地址" />
-                    <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
-                             Text="{Binding AiBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="服务商" />
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
+                              ItemsSource="{Binding ProviderOptions}"
+                              DisplayMemberPath="Name"
+                              SelectedIndex="{Binding SelectedProviderIndex}" />
 
                     <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="模型" />
-                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
-                             Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}" />
+                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
+                              ItemsSource="{Binding ModelOptions}"
+                              SelectedItem="{Binding AiModel}"
+                              IsEditable="True" />
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="API Key" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="API 地址" />
                     <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
+                             Text="{Binding AiBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="API Key" />
+                    <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
                              Text="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged}" />
 
-                    <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Top" Text="AI 人设" />
-                    <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" Padding="10,6" Height="90"
+                    <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Top" Text="AI 人设" />
+                    <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" Padding="10,6" Height="90"
                              AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                              Text="{Binding AiPersona, UpdateSourceTrigger=PropertyChanged}" />
 
-                    <CheckBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,8" Content="启用 AI"
+                    <CheckBox Grid.Row="5" Grid.Column="1" Margin="0,0,0,8" Content="启用 AI"
                               IsChecked="{Binding EnableAi}" />
                 </Grid>
 
