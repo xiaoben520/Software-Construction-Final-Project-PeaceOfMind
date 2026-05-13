@@ -10,6 +10,12 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"
                 xmlns:converters="clr-namespace:MemoMind.App.Converters" />
+            <converters:HalfWidthConverter x:Key="HalfWidthConverter"
+                xmlns:converters="clr-namespace:MemoMind.App.Converters" />
+            <converters:HalfBoardWidthConverter x:Key="HalfBoardWidthConverter"
+                xmlns:converters="clr-namespace:MemoMind.App.Converters" />
+            <converters:ProgressToOverlayConverter x:Key="ProgressToOverlayConverter"
+                xmlns:converters="clr-namespace:MemoMind.App.Converters" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

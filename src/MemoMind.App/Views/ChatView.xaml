@@ -14,19 +14,47 @@
             <DockPanel>
                 <TextBlock Text="AI 聊天" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" DockPanel.Dock="Top" />
                 <TextBlock Text="{Binding AiStatus}" Margin="0,4,0,10" Foreground="{DynamicResource SecondaryTextBrush}" DockPanel.Dock="Top" FontSize="12" />
-                <ListBox ItemsSource="{Binding Messages}" BorderThickness="0" Background="Transparent" Margin="0,8,0,0">
+                <ListBox ItemsSource="{Binding Messages}" BorderThickness="0" Background="Transparent" Margin="0,8,0,0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Margin="0,0,0,10" Padding="12" Background="{DynamicResource ListItemBrush}" CornerRadius="10">
-                                <StackPanel>
-                                    <DockPanel>
-                                        <TextBlock Text="{Binding Sender}" FontWeight="SemiBold" DockPanel.Dock="Left" />
-                                        <TextBlock Text="{Binding Time, StringFormat={}{0:HH:mm}}" FontSize="11"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}" DockPanel.Dock="Right" />
-                                    </DockPanel>
-                                    <TextBlock Text="{Binding Content}" Margin="0,6,0,0" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                
+                                <Border Grid.Column="0" Padding="12,8,12,8" 
+                                        Background="{DynamicResource ListItemBrush}" 
+                                        CornerRadius="10,10,10,2"
+                                        Width="Auto" MaxWidth="280"
+                                        Visibility="{Binding IsUserMessage, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,4">
+                                            <TextBlock Text="{Binding Sender}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding Time, StringFormat={}{0:HH:mm}}" FontSize="10"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" DockPanel.Dock="Right" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="14" />
+                                    </StackPanel>
+                                </Border>
+                                
+                                <Border Grid.Column="1" Padding="12,8,12,8" 
+                                        Background="#4A90D9" 
+                                        CornerRadius="10,10,2,10"
+                                        Width="Auto" MaxWidth="280"
+                                        Visibility="{Binding IsUserMessage, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,4">
+                                            <TextBlock Text="{Binding Sender}" FontWeight="SemiBold" FontSize="12" Foreground="White" />
+                                            <TextBlock Text="{Binding Time, StringFormat={}{0:HH:mm}}" FontSize="10"
+                                                       Foreground="White" DockPanel.Dock="Right" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="14" Foreground="White" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

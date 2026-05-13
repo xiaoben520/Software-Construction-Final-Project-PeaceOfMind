@@ -20,7 +20,7 @@ public class ChatViewModel : ViewModelBase, ISettingsAwareViewModel
         chatService = App.Services.GetService<IChatService>();
         Messages = new ObservableCollection<ChatMessage>
         {
-            new() { Sender = "MemoMind", Content = "你好，我是你的 AI 心灵伙伴。我会帮你整理任务，也会温和地陪你说说话。" }
+            new() { Sender = "MemoMind", Content = "你好，我是你的 AI 心灵伙伴。我会帮你整理任务，也会温和地陪你说说话。", IsUserMessage = false }
         };
 
         SendCommand = new RelayCommand(_ => Send(), _ => !string.IsNullOrWhiteSpace(InputText) && !IsSending);
@@ -81,7 +81,7 @@ public class ChatViewModel : ViewModelBase, ISettingsAwareViewModel
             return;
         }
 
-        Messages.Add(new ChatMessage { Sender = "我", Content = userText, Time = DateTime.Now });
+        Messages.Add(new ChatMessage { Sender = "我", Content = userText, Time = DateTime.Now, IsUserMessage = true });
         InputText = string.Empty;
         IsSending = true;
 
@@ -96,7 +96,7 @@ public class ChatViewModel : ViewModelBase, ISettingsAwareViewModel
             reply = "我收到了。先别急，我们可以把它拆成一两件最小的事。";
         }
 
-        Messages.Add(new ChatMessage { Sender = "MemoMind", Content = reply, Time = DateTime.Now });
+        Messages.Add(new ChatMessage { Sender = "MemoMind", Content = reply, Time = DateTime.Now, IsUserMessage = false });
         IsSending = false;
     }
 }

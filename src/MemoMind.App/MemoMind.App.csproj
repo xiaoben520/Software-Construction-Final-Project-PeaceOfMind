@@ -15,8 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
+ lym-1
     <Content Include="Resources\PlantImages\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+
   </ItemGroup>
 </Project>

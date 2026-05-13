@@ -17,4 +17,5 @@
     <SolidColorBrush x:Key="SidebarButtonBackgroundBrush" Color="{DynamicResource SidebarButtonColor}" />
     <SolidColorBrush x:Key="SidebarButtonForegroundBrush" Color="{DynamicResource SidebarButtonForegroundColor}" />
     <SolidColorBrush x:Key="ListItemBrush" Color="{DynamicResource ListItemColor}" />
+    <SolidColorBrush x:Key="UrgentTaskBrush" Color="#4A1A1A" />
 </ResourceDictionary>

@@ -15,6 +15,7 @@ namespace MemoMind.App;
 
 public partial class App : Application
 {
+ lym-1
     public static IServiceProvider Services { get; private set; } = default!;
     private static readonly string[] ThemeResourceFiles =
     [
