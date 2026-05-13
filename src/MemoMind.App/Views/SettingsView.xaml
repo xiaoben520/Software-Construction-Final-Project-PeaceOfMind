@@ -136,6 +136,32 @@
 
                 <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,16" />
 
+                <TextBlock Text="文件工作区模块显示" Margin="0,16,0,10" FontSize="18" FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                <TextBlock Text="控制在文件工作区页面中显示哪些功能模块。" Margin="0,0,0,8"
+                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+
+                <StackPanel Margin="0,0,0,8">
+                    <CheckBox Content="显示「最近打开」模块 — 自动记录最近打开的文件和文件夹"
+                              IsChecked="{Binding ShowRecentFiles}" Margin="0,0,0,6" />
+                    <CheckBox Content="显示「保存工作区」模块 — 自定义分组管理常用文件和文件夹"
+                              IsChecked="{Binding ShowWorkspaceGroups}" Margin="0,0,0,6" />
+                    <CheckBox Content="显示「小文件管理器」模块 — 简化的文件浏览与管理"
+                              IsChecked="{Binding ShowFileManager}" />
+                </StackPanel>
+
+                <Grid Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="管理器默认目录" />
+                    <TextBox Grid.Column="1" Padding="10,6"
+                             Text="{Binding FileManagerRootPath, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+
+                <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,16" />
+
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
                     <Button Content="重新加载" Margin="0,0,10,0" Padding="16,8"
                             Style="{StaticResource SidebarButtonStyle}" Command="{Binding LoadCommand}" />

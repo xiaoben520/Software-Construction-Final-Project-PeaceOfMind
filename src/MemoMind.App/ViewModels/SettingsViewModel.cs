@@ -23,6 +23,10 @@ public class SettingsViewModel : ViewModelBase
     private string statusMessage = "设置将保存到本地配置文件。";
     private bool suppressLayoutPreview;
     private int selectedProviderIndex;
+    private bool showRecentFiles = true;
+    private bool showWorkspaceGroups = true;
+    private bool showFileManager = true;
+    private string fileManagerRootPath = string.Empty;
 
     public SettingsViewModel()
         : this(App.Services.GetRequiredService<IAppSettingsStore>())
@@ -167,6 +171,30 @@ public class SettingsViewModel : ViewModelBase
     public ObservableCollection<AiProviderPreset> ProviderOptions { get; }
     public ObservableCollection<string> ModelOptions { get; }
 
+    public bool ShowRecentFiles
+    {
+        get => showRecentFiles;
+        set { showRecentFiles = value; OnPropertyChanged(); }
+    }
+
+    public bool ShowWorkspaceGroups
+    {
+        get => showWorkspaceGroups;
+        set { showWorkspaceGroups = value; OnPropertyChanged(); }
+    }
+
+    public bool ShowFileManager
+    {
+        get => showFileManager;
+        set { showFileManager = value; OnPropertyChanged(); }
+    }
+
+    public string FileManagerRootPath
+    {
+        get => fileManagerRootPath;
+        set { fileManagerRootPath = value; OnPropertyChanged(); }
+    }
+
     public ObservableCollection<PageVisibilityOptionViewModel> SidebarOptions { get; }
 
     public ObservableCollection<PageVisibilityOptionViewModel> HomeOptions { get; }
@@ -220,6 +248,10 @@ public class SettingsViewModel : ViewModelBase
         EnableReminder = settings.EnableReminder;
         ReminderHour = settings.ReminderHour;
         Theme = string.IsNullOrWhiteSpace(settings.Theme) ? "System" : settings.Theme;
+        ShowRecentFiles = settings.ShowRecentFiles;
+        ShowWorkspaceGroups = settings.ShowWorkspaceGroups;
+        ShowFileManager = settings.ShowFileManager;
+        FileManagerRootPath = settings.FileManagerRootPath;
         ApplySavedVisibility(settings);
         RefreshSettingsAwarePages(settings);
 
@@ -274,6 +306,10 @@ public class SettingsViewModel : ViewModelBase
             EnableReminder = EnableReminder,
             ReminderHour = ReminderHour,
             Theme = Theme,
+            ShowRecentFiles = ShowRecentFiles,
+            ShowWorkspaceGroups = ShowWorkspaceGroups,
+            ShowFileManager = ShowFileManager,
+            FileManagerRootPath = FileManagerRootPath,
             SidebarPageIds = SidebarOptions.Where(option => option.IsSelected).Select(option => option.Id).ToList(),
             HomePageIds = HomeOptions.Where(option => option.IsSelected).Select(option => option.Id).ToList()
         };
