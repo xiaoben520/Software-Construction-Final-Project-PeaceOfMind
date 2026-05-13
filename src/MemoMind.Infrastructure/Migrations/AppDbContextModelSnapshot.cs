@@ -133,7 +133,7 @@ public partial class AppDbContextModelSnapshot : ModelSnapshot
             b.Property<DateTime?>("DueDate")
                 .HasColumnType("TEXT");
 
-            b.Property<int>("Priority")
+            b.Property<bool>("IsUrgent")
                 .HasColumnType("INTEGER");
 
             b.Property<string>("SourceType")
