@@ -1,8 +1,11 @@
-using System.Windows.Input;
 using System.ComponentModel;
+using System.Windows;
+using System.Windows.Input;
 using MemoMind.App.Commands;
 using MemoMind.App.Models;
 using MemoMind.App.Services;
+using MemoMind.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 
@@ -43,6 +46,7 @@ public class SettingsViewModel : ViewModelBase
         ModelOptions = new ObservableCollection<string>(AiProviderPreset.All[0].Models);
         SaveCommand = new RelayCommand(_ => Save());
         LoadCommand = new RelayCommand(_ => Load());
+        DeleteDatabaseCommand = new RelayCommand(_ => DeleteDatabase());
         _ = LoadAsync();
     }
 
@@ -166,6 +170,7 @@ public class SettingsViewModel : ViewModelBase
 
     public ICommand SaveCommand { get; }
     public ICommand LoadCommand { get; }
+    public ICommand DeleteDatabaseCommand { get; }
 
     public ObservableCollection<string> ThemeOptions { get; }
     public ObservableCollection<AiProviderPreset> ProviderOptions { get; }
@@ -334,6 +339,40 @@ public class SettingsViewModel : ViewModelBase
     private void Load()
     {
         _ = LoadAsync();
+    }
+
+    private async Task DeleteDatabaseAsync()
+    {
+        var confirm = MessageBox.Show(
+            "这将删除本地数据库，所有任务等数据会被清空。是否继续？",
+            "删除数据库",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.Yes)
+        {
+            StatusMessage = "已取消删除数据库。";
+            return;
+        }
+
+        try
+        {
+            using var scope = App.Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var deleted = await dbContext.Database.EnsureDeletedAsync();
+            StatusMessage = deleted
+                ? "数据库已删除，请重启应用以重新生成。"
+                : "未找到数据库或无需删除。";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"删除数据库失败: {ex.Message}";
+        }
+    }
+
+    private void DeleteDatabase()
+    {
+        _ = DeleteDatabaseAsync();
     }
 
     private void BuildVisibilityOptions()

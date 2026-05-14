@@ -160,6 +160,14 @@
                              Text="{Binding FileManagerRootPath, UpdateSourceTrigger=PropertyChanged}" />
                 </Grid>
 
+                <TextBlock Text="测试工具" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
+                        Foreground="{DynamicResource PrimaryTextBrush}" />
+                <TextBlock Text="用于测试环境清理：删除本地数据库后需重启应用。" Margin="0,0,0,12"
+                        Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+                <Button Content="删除数据库" Padding="16,8" HorizontalAlignment="Left"
+                    Style="{StaticResource SidebarButtonStyle}"
+                    Command="{Binding DeleteDatabaseCommand}" />
+
                 <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,16" />
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
