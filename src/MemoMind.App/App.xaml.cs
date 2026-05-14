@@ -36,12 +36,14 @@ public partial class App : Application
 
         var databasePath = Path.Combine(appDataFolder, "MemoMind.db");
         var settingsFilePath = Path.Combine(appDataFolder, "settings.json");
+        var fileWorkspaceStatePath = Path.Combine(appDataFolder, "file_workspace_state.json");
         var services = new ServiceCollection();
         services.AddDbContext<AppDbContext>(options => options.UseSqlite($"Data Source={databasePath}"));
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<IFileWorkspaceService, FileWorkspaceService>();
         services.AddScoped<ICustomPlantService, CustomPlantService>();
         services.AddSingleton<IAppSettingsStore>(_ => new JsonAppSettingsStore(settingsFilePath));
+        services.AddSingleton<IFileWorkspaceStateService>(_ => new FileWorkspaceStateService(fileWorkspaceStatePath));
         services.AddSingleton<IChatService, ChatService>();
         services.AddSingleton<MainViewModel>();
         services.AddTransient<HomeViewModel>();
@@ -92,6 +94,7 @@ public partial class App : Application
                         Title = "计网作业",
                         Description = "完成课程作业并整理提交材料",
                         DueDate = DateTime.Today.AddDays(2),
+                        IsUrgent = true,
                         Status = "Todo",
                         SourceType = "Seed"
                     },
@@ -100,6 +103,7 @@ public partial class App : Application
                         Title = "小组讨论",
                         Description = "准备项目分工与展示内容",
                         DueDate = DateTime.Today.AddDays(1),
+                        IsUrgent = false,
                         Status = "Doing",
                         SourceType = "Seed"
                     });

@@ -10,6 +10,10 @@ public class UserSettings
     public bool EnableReminder { get; set; } = true;
     public int ReminderHour { get; set; } = 20;
     public string Theme { get; set; } = "System";
+    public bool ShowRecentFiles { get; set; } = true;
+    public bool ShowWorkspaceGroups { get; set; } = true;
+    public bool ShowFileManager { get; set; } = true;
+    public string FileManagerRootPath { get; set; } = string.Empty;
     public List<string>? SidebarPageIds { get; set; }
     public List<string>? HomePageIds { get; set; }
 }
