@@ -86,13 +86,20 @@ public class TaskBoardViewModel : ViewModelBase
             CurrentTime = now.ToString("HH:mm");
             UpdateTodaySummary();
 
-            foreach (var task in Tasks.Where(t => t.Status == "Doing" && t.CountdownEndTime > DateTime.MinValue).ToList())
+            foreach (var task in Tasks)
             {
-                var remaining = (task.CountdownEndTime - now).TotalSeconds;
-                if (remaining <= 0)
+                if (task.Status != "Doing") continue;
+                if (task.CountdownEndTime <= DateTime.MinValue) continue;
+                var secs = (int)(task.CountdownEndTime - now).TotalSeconds;
+                if (secs <= 0)
                 {
                     if (task.IsBreakTime)
+                    {
                         task.Status = "Todo";
+                        task.IsBreakTime = false;
+                        task.CountdownEndTime = DateTime.MinValue;
+                        task.CountdownDisplay = string.Empty;
+                    }
                     else
                     {
                         task.IsBreakTime = true;
@@ -101,11 +108,10 @@ public class TaskBoardViewModel : ViewModelBase
                 }
                 else
                 {
-                    var totalSecs = (int)remaining;
-                    var mins = totalSecs / 60;
-                    var secs = totalSecs % 60;
-                    task.CountdownDisplay = string.Format("{0} {1:D2}:{2:D2}",
-                        task.IsBreakTime ? "Break" : "Work", mins, secs);
+                    var m = secs / 60;
+                    var sec = secs % 60;
+                    var label = task.IsBreakTime ? "Break" : "Work";
+                    task.CountdownDisplay = $"{label} {m:D2}:{sec:D2}";
                 }
             }
         };
