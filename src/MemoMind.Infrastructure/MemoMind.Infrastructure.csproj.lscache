@@ -58,14 +58,19 @@ Data/
  AppDbContextFactory.cs
 Migrations/
  202604190001_InitialCreate.cs
+ 202605150001_AddChatMessages.cs
+ 202605150002_AddMemories.cs
  AppDbContextModelSnapshot.cs
 obj/Debug/net8.0/
  .NETCoreApp,Version=v8.0.AssemblyAttributes.cs
  MemoMind.Infrastructure.AssemblyInfo.cs
  MemoMind.Infrastructure.GlobalUsings.g.cs
 Services/
+ AgentToolExecutor.cs
+ ChatMessageService.cs
  CustomPlantService.cs
  FileWorkspaceService.cs
+ MemoryService.cs
  TaskService.cs
 
 [metadataReferences]

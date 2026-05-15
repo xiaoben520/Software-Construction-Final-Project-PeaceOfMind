@@ -102,6 +102,7 @@ ViewModels/
  CyberPlantViewModel.cs
  FileWorkspaceViewModel.cs
  HomeViewModel.cs
+ IPageLifecycleAware.cs
  ISettingsAwareViewModel.cs
  MainViewModel.cs
  NavigationPageItemViewModel.cs

@@ -57,6 +57,16 @@
                         <WrapPanel Margin="0,10,0,0">
                             <DatePicker Width="150" Margin="0,0,10,0"
                                         SelectedDate="{Binding NewTaskDueDate}" />
+                            <ComboBox SelectedItem="{Binding NewTaskEstimatedHours}" Width="44" Height="28" FontSize="13"
+                                      ItemsSource="{Binding HourOptions}"
+                                      VerticalContentAlignment="Center" />
+                            <TextBlock Text="h" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
+                                       Margin="2,0,6,0" />
+                            <ComboBox SelectedItem="{Binding NewTaskEstimatedMinutes}" Width="44" Height="28" FontSize="13"
+                                      ItemsSource="{Binding MinuteOptions}"
+                                      VerticalContentAlignment="Center" />
+                            <TextBlock Text="m" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
+                                       Margin="2,0,10,0" />
                             <ToggleButton Content="🔴 紧急" Margin="0,0,10,0" Padding="10,6"
                                           IsChecked="{Binding NewTaskIsUrgent}"
                                           IsEnabled="{Binding IsUrgentEnabled}"
@@ -101,6 +111,16 @@
                         <WrapPanel Margin="0,10,0,0">
                             <DatePicker Width="150" Margin="0,0,10,0"
                                         SelectedDate="{Binding EditDueDate}" />
+                            <ComboBox SelectedItem="{Binding EditEstimatedHours}" Width="44" Height="28" FontSize="13"
+                                      ItemsSource="{Binding HourOptions}"
+                                      VerticalContentAlignment="Center" />
+                            <TextBlock Text="h" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
+                                       Margin="2,0,6,0" />
+                            <ComboBox SelectedItem="{Binding EditEstimatedMinutes}" Width="44" Height="28" FontSize="13"
+                                      ItemsSource="{Binding MinuteOptions}"
+                                      VerticalContentAlignment="Center" />
+                            <TextBlock Text="m" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
+                                       Margin="2,0,10,0" />
                             <ToggleButton Content="🔴 紧急" Margin="0,0,10,0" Padding="10,6"
                                           IsChecked="{Binding EditIsUrgent}"
                                           VerticalContentAlignment="Center">
@@ -223,7 +243,7 @@
                                         <TextBlock Text="{Binding Status}" Foreground="White" FontSize="11" />
                                     </Border>
                                 </StackPanel>
-                                <!-- 开工 button (when Todo and time picker not shown) -->
+                                <!-- 开工 button (when Todo) -->
                                 <Button Grid.Row="0" Grid.Column="1" Content="🚀 开工" Padding="12,6" FontSize="12" Width="90"
                                         Margin="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
                                         Command="{Binding DataContext.StartTaskCommand, Source={x:Reference TaskBoardListView}}"
@@ -236,66 +256,13 @@
                                             <Setter Property="Cursor" Value="Hand" />
                                             <Setter Property="Visibility" Value="Collapsed" />
                                             <Style.Triggers>
-                                                <MultiDataTrigger>
-                                                    <MultiDataTrigger.Conditions>
-                                                        <Condition Binding="{Binding Status}" Value="Todo" />
-                                                        <Condition Binding="{Binding IsTimePickerVisible}" Value="False" />
-                                                    </MultiDataTrigger.Conditions>
-                                                    <Setter Property="Visibility" Value="Visible" />
-                                                </MultiDataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-
-                                <!-- Time picker (shown after clicking 开工) -->
-                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal"
-                                            Margin="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                    <StackPanel.Style>
-                                        <Style TargetType="StackPanel">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsTimePickerVisible}" Value="True">
+                                                <DataTrigger Binding="{Binding Status}" Value="Todo">
                                                     <Setter Property="Visibility" Value="Visible" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
-                                    </StackPanel.Style>
-                                    <ComboBox SelectedItem="{Binding EstimatedHours}" Width="44" Height="28" FontSize="13"
-                                              ItemsSource="{Binding DataContext.HourOptions, Source={x:Reference TaskBoardListView}}"
-                                              VerticalContentAlignment="Center" />
-                                    <TextBlock Text="h" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
-                                               Margin="2,0,6,0" />
-                                    <ComboBox SelectedItem="{Binding EstimatedMinutes}" Width="44" Height="28" FontSize="13"
-                                              ItemsSource="{Binding DataContext.MinuteOptions, Source={x:Reference TaskBoardListView}}"
-                                              VerticalContentAlignment="Center" />
-                                    <TextBlock Text="m" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
-                                               Margin="2,0,8,0" />
-                                    <Button Content="✅ 确认" Padding="10,6" FontSize="12"
-                                            Command="{Binding DataContext.ConfirmStartCommand, Source={x:Reference TaskBoardListView}}"
-                                            CommandParameter="{Binding}">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Setter Property="Background" Value="#4CAF50" />
-                                                <Setter Property="Foreground" Value="White" />
-                                                <Setter Property="BorderThickness" Value="0" />
-                                                <Setter Property="Cursor" Value="Hand" />
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                    <Button Content="❌" Padding="8,6" FontSize="12"
-                                            Command="{Binding DataContext.CancelTimerCommand, Source={x:Reference TaskBoardListView}}"
-                                            CommandParameter="{Binding}">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Setter Property="Background" Value="#666" />
-                                                <Setter Property="Foreground" Value="White" />
-                                                <Setter Property="BorderThickness" Value="0" />
-                                                <Setter Property="Cursor" Value="Hand" />
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </StackPanel>
+                                    </Button.Style>
+                                </Button>
 
                                 <!-- 完成 button (when Doing) -->
                                 <Button Grid.Row="0" Grid.Column="1" Content="✅ 完成" Padding="12,6" FontSize="12" Width="90"
@@ -342,13 +309,11 @@
                                     </Button.Style>
                                 </Button>
 
-                                <!-- Row 2: Countdown (full width, centered) -->
-                                <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding CountdownDisplay}"
-                                           FontSize="18" FontWeight="Bold" Margin="0,6,0,0"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="#4CAF50">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
+                                <!-- Row 2: Circular Countdown Ring -->
+                                <Grid Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Center"
+                                      Margin="0,10,0,0" Width="90" Height="90">
+                                    <Grid.Style>
+                                        <Style TargetType="Grid">
                                             <Setter Property="Visibility" Value="Collapsed" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding Status}" Value="Doing">
@@ -356,15 +321,44 @@
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                    </Grid.Style>
+                                    <!-- Progress arc -->
+                                    <Path StrokeThickness="6"
+                                          Data="{Binding CountdownProgress, Converter={StaticResource ProgressToArcConverter}}"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                                        <Path.Style>
+                                            <Style TargetType="Path">
+                                                <Setter Property="Stroke" Value="#4CAF50" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsBreakTime}" Value="True">
+                                                        <Setter Property="Stroke" Value="#FF9800" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Path.Style>
+                                    </Path>
+                                    <!-- Center: countdown time + status -->
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding CountdownDisplay}" FontSize="18" FontWeight="Bold"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="{Binding CountdownStatusText}" FontSize="11"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
 
-                                <!-- Row 3: Due date (Col 0) | 🔴 紧急 (Col 1) -->
-                                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,12,0,0"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center">
-                                    <Run Text="截止：" />
-                                    <Run Text="{Binding DueDate, StringFormat={}{0:yyyy-MM-dd}}" />
-                                </TextBlock>
+                                <!-- Row 3: Due date + estimated time (Col 0) | 🔴 紧急 (Col 1) -->
+                                <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Margin="0,12,0,0"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Foreground="{DynamicResource SecondaryTextBrush}">
+                                        <Run Text="截止：" />
+                                        <Run Text="{Binding DueDate, StringFormat={}{0:yyyy-MM-dd}}" />
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding EstimatedTimeDisplay}" Margin="16,0,0,0"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </StackPanel>
                                 <TextBlock Grid.Row="3" Grid.Column="1" Width="90" Margin="0,12,0,0"
                                            Foreground="#FF4444" FontWeight="Bold" TextAlignment="Right"
                                            HorizontalAlignment="Right"

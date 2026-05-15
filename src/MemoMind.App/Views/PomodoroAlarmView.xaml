@@ -1,0 +1,399 @@
+<UserControl x:Class="MemoMind.App.Views.PomodoroAlarmView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <Style x:Key="PlusMinusButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#4A90D9" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Width="{TemplateBinding Width}"
+                                Height="{TemplateBinding Height}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══════════ Left: Pomodoro Timer ═══════════ -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Timer Display Card -->
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="番茄钟" FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryTextBrush}"
+                                   HorizontalAlignment="Center" Margin="0,0,0,12" />
+
+                        <TextBlock Text="{Binding ModeText}" FontSize="14"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   HorizontalAlignment="Center" Margin="0,0,0,8" />
+
+                        <TextBlock Text="{Binding RemainingTimeDisplay}" FontSize="64" FontWeight="Bold"
+                                   FontFamily="Consolas"
+                                   Foreground="{DynamicResource PrimaryTextBrush}"
+                                   HorizontalAlignment="Center" Margin="0,0,0,20" />
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button Content="{Binding StartPauseText}" Width="90" Height="38"
+                                    Style="{StaticResource SidebarButtonStyle}" Margin="0,0,8,0"
+                                    Command="{Binding StartPauseCommand}" />
+                            <Button Content="跳过" Width="70" Height="38"
+                                    Style="{StaticResource SidebarButtonStyle}" Margin="0,0,8,0"
+                                    Command="{Binding SkipPhaseCommand}" />
+                            <Button Content="重置" Width="70" Height="38"
+                                    Style="{StaticResource SidebarButtonStyle}"
+                                    Command="{Binding ResetCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Settings Card -->
+                <Border Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="时间设置" FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,12" />
+
+                        <!-- Work Minutes -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="工作时间 (分钟)" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" />
+                            <DockPanel Grid.Column="1">
+                                <Button Content="+" DockPanel.Dock="Right"
+                                        Style="{StaticResource PlusMinusButtonStyle}"
+                                        Click="WorkMinutesUp_Click" />
+                                <Button Content="−" DockPanel.Dock="Right"
+                                        Style="{StaticResource PlusMinusButtonStyle}"
+                                        Click="WorkMinutesDown_Click" Margin="0,0,6,0" />
+                                <TextBox Text="{Binding WorkMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="60" Height="28" TextAlignment="Center"
+                                         VerticalContentAlignment="Center" Margin="0,0,6,0" />
+                            </DockPanel>
+                        </Grid>
+
+                        <!-- Break Minutes -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="休息时间 (分钟)" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" />
+                            <DockPanel Grid.Column="1">
+                                <Button Content="+" DockPanel.Dock="Right"
+                                        Style="{StaticResource PlusMinusButtonStyle}"
+                                        Click="BreakMinutesUp_Click" />
+                                <Button Content="−" DockPanel.Dock="Right"
+                                        Style="{StaticResource PlusMinusButtonStyle}"
+                                        Click="BreakMinutesDown_Click" Margin="0,0,6,0" />
+                                <TextBox Text="{Binding BreakMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="60" Height="28" TextAlignment="Center"
+                                         VerticalContentAlignment="Center" Margin="0,0,6,0" />
+                            </DockPanel>
+                        </Grid>
+
+                        <!-- Cycle Count -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="循环次数" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" />
+                            <DockPanel Grid.Column="1">
+                                <Button Content="+" DockPanel.Dock="Right"
+                                        Style="{StaticResource PlusMinusButtonStyle}"
+                                        Click="CycleCountUp_Click" />
+                                <Button Content="−" DockPanel.Dock="Right"
+                                        Style="{StaticResource PlusMinusButtonStyle}"
+                                        Click="CycleCountDown_Click" Margin="0,0,6,0" />
+                                <TextBox Text="{Binding CycleCount, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="60" Height="28" TextAlignment="Center"
+                                         VerticalContentAlignment="Center" Margin="0,0,6,0" />
+                            </DockPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══════════ Right: Alarm Clock ═══════════ -->
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Add Alarm Card -->
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="添加闹钟" FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,10" />
+
+                        <!-- Name -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="名称" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" />
+                            <TextBox Grid.Column="1" Text="{Binding NewAlarmName, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="28" VerticalContentAlignment="Center" />
+                        </Grid>
+
+                        <!-- Time: hours : minutes -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="时间" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <TextBox Text="{Binding NewAlarmHour, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="48" Height="28" TextAlignment="Center"
+                                         VerticalContentAlignment="Center" FontSize="14" />
+                                <TextBlock Text=" : " VerticalAlignment="Center" FontSize="16"
+                                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <TextBox Text="{Binding NewAlarmMinute, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="48" Height="28" TextAlignment="Center"
+                                         VerticalContentAlignment="Center" FontSize="14" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Repeat Mode -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="重复" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" />
+                            <ComboBox Grid.Column="1" Height="28"
+                                      SelectedIndex="{Binding NewAlarmRepeatIndex}"
+                                      VerticalContentAlignment="Center">
+                                <ComboBoxItem>单次</ComboBoxItem>
+                                <ComboBoxItem>每日</ComboBoxItem>
+                                <ComboBoxItem>每周</ComboBoxItem>
+                                <ComboBoxItem>自定义</ComboBoxItem>
+                            </ComboBox>
+                        </Grid>
+
+                        <!-- Custom Days -->
+                        <Border Background="{DynamicResource ListItemBrush}" CornerRadius="8" Padding="8,6"
+                                Margin="80,0,0,8"
+                                Visibility="{Binding IsCustomDaysVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <WrapPanel>
+                                <CheckBox Content="一" Margin="0,0,8,0"
+                                          IsChecked="{Binding NewAlarmMon}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <CheckBox Content="二" Margin="0,0,8,0"
+                                          IsChecked="{Binding NewAlarmTue}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <CheckBox Content="三" Margin="0,0,8,0"
+                                          IsChecked="{Binding NewAlarmWed}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <CheckBox Content="四" Margin="0,0,8,0"
+                                          IsChecked="{Binding NewAlarmThu}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <CheckBox Content="五" Margin="0,0,8,0"
+                                          IsChecked="{Binding NewAlarmFri}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <CheckBox Content="六" Margin="0,0,8,0"
+                                          IsChecked="{Binding NewAlarmSat}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <CheckBox Content="日" Margin="0,0,8,0"
+                                          IsChecked="{Binding NewAlarmSun}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}" />
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- Message -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="提醒消息" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" />
+                            <TextBox Grid.Column="1" Text="{Binding NewAlarmMessage, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="28" VerticalContentAlignment="Center" />
+                        </Grid>
+
+                        <Button Content="添加闹钟" Height="34"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                HorizontalAlignment="Center" Width="100"
+                                Command="{Binding AddAlarmCommand}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Alarm List Card -->
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="闹钟列表" FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,8" />
+
+                        <ItemsControl ItemsSource="{Binding Alarms}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource ListItemBrush}"
+                                            CornerRadius="8" Padding="10,8" Margin="0,0,0,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource PrimaryTextBrush}">
+                                                        <Run Text="{Binding Name, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                    <TextBlock DockPanel.Dock="Right" FontSize="11"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               Margin="12,0,0,0"
+                                                               VerticalAlignment="Center">
+                                                        <Run Text="{Binding IsEnabled, Mode=OneWay,
+                                                              StringFormat={}已启用}"/>
+                                                    </TextBlock>
+                                                </DockPanel>
+                                                <TextBlock FontSize="12" Margin="0,2,0,0"
+                                                           Foreground="{DynamicResource SecondaryTextBrush}">
+                                                    <Run Text="{Binding Hour, Mode=OneWay, StringFormat={}{0:D2}}" />
+                                                    <Run Text=":" />
+                                                    <Run Text="{Binding Minute, Mode=OneWay, StringFormat={}{0:D2}}" />
+                                                    <Run Text=" · " />
+                                                    <Run Text="{Binding RepeatMode, Mode=OneWay}" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="删除" Width="56" Height="30"
+                                                    VerticalAlignment="Center"
+                                                    Background="#E05555" Foreground="White"
+                                                    BorderThickness="0" Cursor="Hand"
+                                                    FontSize="12"
+                                                    Command="{Binding DataContext.DeleteAlarmCommand,
+                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding Id, Mode=OneWay}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                CornerRadius="6" Padding="10,4">
+                                                            <ContentPresenter HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="暂无闹钟" FontSize="12"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   HorizontalAlignment="Center" Margin="0,12,0,0"
+                                   FontStyle="Italic">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Alarms.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Countdown Card -->
+                <Border Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="倒计时" FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,10" />
+
+                        <!-- Time Input -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="时" HorizontalAlignment="Center" FontSize="11"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding CountdownHours, UpdateSourceTrigger=PropertyChanged}"
+                                         TextAlignment="Center" VerticalContentAlignment="Center"
+                                         Height="32" Width="52" FontSize="16" />
+                            </StackPanel>
+                            <TextBlock Text=":" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource PrimaryTextBrush}" Margin="4,0"
+                                       Grid.Column="1" />
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="分" HorizontalAlignment="Center" FontSize="11"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding CountdownMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                         TextAlignment="Center" VerticalContentAlignment="Center"
+                                         Height="32" Width="52" FontSize="16" />
+                            </StackPanel>
+                            <TextBlock Text=":" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource PrimaryTextBrush}" Margin="4,0"
+                                       Grid.Column="3" />
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="秒" HorizontalAlignment="Center" FontSize="11"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding CountdownSeconds, UpdateSourceTrigger=PropertyChanged}"
+                                         TextAlignment="Center" VerticalContentAlignment="Center"
+                                         Height="32" Width="52" FontSize="16" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Countdown Display -->
+                        <TextBlock Text="{Binding CountdownDisplay}" FontSize="32"
+                                   FontFamily="Consolas" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryTextBrush}"
+                                   HorizontalAlignment="Center" Margin="0,0,0,12" />
+
+                        <!-- Countdown Buttons -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button Content="{Binding CountdownStartPauseText}"
+                                    Width="80" Height="34" Margin="0,0,8,0"
+                                    Style="{StaticResource SidebarButtonStyle}"
+                                    Command="{Binding CountdownStartPauseCommand}" />
+                            <Button Content="重置" Width="70" Height="34"
+                                    Style="{StaticResource SidebarButtonStyle}"
+                                    Command="{Binding CountdownResetCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
