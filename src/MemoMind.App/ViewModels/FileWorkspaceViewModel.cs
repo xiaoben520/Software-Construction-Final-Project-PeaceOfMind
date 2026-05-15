@@ -15,6 +15,7 @@ namespace MemoMind.App.ViewModels;
 public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
 {
     private readonly IFileWorkspaceStateService stateService;
+    private readonly IAppSettingsStore settingsStore;
 
     // --- Module visibility ---
     private bool showRecentFiles = true;
@@ -24,6 +25,8 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
     // --- Recent Files ---
     private RecentFileEntry? selectedRecentFile;
     private string recentStatus = string.Empty;
+    private int recentFilesLimit = 50;
+    private bool isRecentFilesExpanded = true;
 
     // --- Workspace Groups ---
     private string newGroupName = string.Empty;
@@ -31,31 +34,39 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
     private string workspaceStatus = string.Empty;
 
     // --- File Manager ---
-    private string fileManagerRootPath = string.Empty;
+    private string selectedRootPath = string.Empty;
     private FileManagerItem? selectedFileManagerItem;
     private string newFileName = string.Empty;
     private string fileManagerStatus = string.Empty;
+    private HashSet<string> expandedPaths = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> hiddenPaths = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> workspaceExpandedPaths = new(StringComparer.OrdinalIgnoreCase);
 
     // --- Watchers ---
     private readonly List<FileSystemWatcher> activeWatchers = [];
 
     public FileWorkspaceViewModel()
-        : this(App.Services.GetRequiredService<IFileWorkspaceStateService>())
+        : this(
+            App.Services.GetRequiredService<IFileWorkspaceStateService>(),
+            App.Services.GetRequiredService<IAppSettingsStore>())
     {
     }
 
-    public FileWorkspaceViewModel(IFileWorkspaceStateService stateService)
+    public FileWorkspaceViewModel(IFileWorkspaceStateService stateService, IAppSettingsStore settingsStore)
     {
         this.stateService = stateService;
+        this.settingsStore = settingsStore;
 
         RecentFiles = [];
         WorkspaceGroups = [];
         FileManagerTree = [];
+        FileManagerRootPaths = [];
 
         // Recent files commands
         OpenRecentFileCommand = new RelayCommand(_ => OpenRecentFile(), _ => SelectedRecentFile is not null);
         RemoveRecentFileCommand = new RelayCommand(_ => RemoveRecentFile(), _ => SelectedRecentFile is not null);
         ClearRecentFilesCommand = new RelayCommand(_ => ClearRecentFiles());
+        ToggleRecentFilesCommand = new RelayCommand(_ => ToggleRecentFiles());
 
         // Workspace commands
         AddGroupCommand = new RelayCommand(_ => AddGroup(), _ => !string.IsNullOrWhiteSpace(NewGroupName));
@@ -64,13 +75,21 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         OpenWorkspaceItemCommand = new RelayCommand(param => OpenWorkspaceItem(param));
         RemoveWorkspaceItemCommand = new RelayCommand(param => RemoveWorkspaceItem(param));
         ToggleExpandCommand = new RelayCommand(param => ToggleExpand(param));
+        ExpandAllCommand = new RelayCommand(param => ExpandAll(param));
+        CollapseAllCommand = new RelayCommand(param => CollapseAll(param));
 
         // File manager commands
-        BrowseRootPathCommand = new RelayCommand(_ => BrowseRootPath());
+        AddRootPathCommand = new RelayCommand(_ => AddRootPath());
+        RemoveRootPathCommand = new RelayCommand(param => RemoveRootPath(param));
         OpenFileManagerItemCommand = new RelayCommand(_ => OpenFileManagerItem(), _ => SelectedFileManagerItem is not null);
         DeleteFileManagerItemCommand = new RelayCommand(_ => DeleteFileManagerItem(), _ => SelectedFileManagerItem is not null);
         RenameFileManagerItemCommand = new RelayCommand(_ => RenameFileManagerItem(), _ => SelectedFileManagerItem is not null && !string.IsNullOrWhiteSpace(NewFileName));
-        AddNewFileCommand = new RelayCommand(_ => AddNewFile(), _ => !string.IsNullOrWhiteSpace(NewFileName) && !string.IsNullOrWhiteSpace(FileManagerRootPath));
+        AddNewFileCommand = new RelayCommand(_ => AddNewFile(), _ => !string.IsNullOrWhiteSpace(NewFileName) && FileManagerRootPaths.Count > 0);
+        DeleteSelectedItemsCommand = new RelayCommand(_ => DeleteSelectedItems(), _ => HasCheckedItems);
+        OpenSelectedItemsCommand = new RelayCommand(_ => OpenSelectedItems(), _ => HasCheckedItems);
+        HideSelectedItemCommand = new RelayCommand(_ => HideSelectedItem(), _ => SelectedFileManagerItem is not null);
+        HideSelectedItemsCommand = new RelayCommand(_ => HideSelectedItems(), _ => HasCheckedItems);
+        ShowAllCommand = new RelayCommand(_ => ShowAll());
 
         _ = LoadAsync();
     }
@@ -116,6 +135,18 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         set { recentStatus = value; OnPropertyChanged(); }
     }
 
+    public int RecentFilesLimit
+    {
+        get => recentFilesLimit;
+        set { recentFilesLimit = Math.Clamp(value, 5, 200); OnPropertyChanged(); }
+    }
+
+    public bool IsRecentFilesExpanded
+    {
+        get => isRecentFilesExpanded;
+        set { isRecentFilesExpanded = value; OnPropertyChanged(); }
+    }
+
     // --- Workspace Groups ---
     public ObservableCollection<WorkspaceGroupViewModel> WorkspaceGroups { get; }
 
@@ -150,16 +181,21 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
 
     // --- File Manager ---
     public ObservableCollection<FileManagerItem> FileManagerTree { get; }
+    public ObservableCollection<string> FileManagerRootPaths { get; }
+
+    public string SelectedRootPath
+    {
+        get => selectedRootPath;
+        set
+        {
+            selectedRootPath = value;
+            OnPropertyChanged();
+        }
+    }
 
     public string FileManagerRootPath
     {
-        get => fileManagerRootPath;
-        set
-        {
-            fileManagerRootPath = value;
-            OnPropertyChanged();
-            (AddNewFileCommand as RelayCommand)?.RaiseCanExecuteChanged();
-        }
+        get => FileManagerRootPaths.Count > 0 ? FileManagerRootPaths[0] : string.Empty;
     }
 
     public FileManagerItem? SelectedFileManagerItem
@@ -172,6 +208,7 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
             (OpenFileManagerItemCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (DeleteFileManagerItemCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (RenameFileManagerItemCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (HideSelectedItemCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 
@@ -193,11 +230,19 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         set { fileManagerStatus = value; OnPropertyChanged(); }
     }
 
+    private bool hasCheckedItems;
+    public bool HasCheckedItems
+    {
+        get => hasCheckedItems;
+        set { hasCheckedItems = value; OnPropertyChanged(); }
+    }
+
     // ==================== Commands ====================
 
     public ICommand OpenRecentFileCommand { get; }
     public ICommand RemoveRecentFileCommand { get; }
     public ICommand ClearRecentFilesCommand { get; }
+    public ICommand ToggleRecentFilesCommand { get; }
 
     public ICommand AddGroupCommand { get; }
     public ICommand DeleteGroupCommand { get; }
@@ -205,12 +250,20 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
     public ICommand OpenWorkspaceItemCommand { get; }
     public ICommand RemoveWorkspaceItemCommand { get; }
     public ICommand ToggleExpandCommand { get; }
+    public ICommand ExpandAllCommand { get; }
+    public ICommand CollapseAllCommand { get; }
 
-    public ICommand BrowseRootPathCommand { get; }
+    public ICommand AddRootPathCommand { get; }
+    public ICommand RemoveRootPathCommand { get; }
     public ICommand OpenFileManagerItemCommand { get; }
     public ICommand DeleteFileManagerItemCommand { get; }
     public ICommand RenameFileManagerItemCommand { get; }
     public ICommand AddNewFileCommand { get; }
+    public ICommand DeleteSelectedItemsCommand { get; }
+    public ICommand OpenSelectedItemsCommand { get; }
+    public ICommand HideSelectedItemCommand { get; }
+    public ICommand HideSelectedItemsCommand { get; }
+    public ICommand ShowAllCommand { get; }
 
     // ==================== Settings ====================
 
@@ -219,11 +272,29 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         ShowRecentFiles = settings.ShowRecentFiles;
         ShowWorkspaceGroups = settings.ShowWorkspaceGroups;
         ShowFileManager = settings.ShowFileManager;
+        RecentFilesLimit = settings.RecentFilesLimit > 0 ? settings.RecentFilesLimit : 50;
 
-        if (!string.IsNullOrWhiteSpace(settings.FileManagerRootPath) &&
-            string.IsNullOrWhiteSpace(FileManagerRootPath))
+        var hasRootPaths = settings.FileManagerRootPaths is { Count: > 0 };
+        if ((!string.IsNullOrWhiteSpace(settings.FileManagerRootPath) || hasRootPaths) &&
+            FileManagerRootPaths.Count == 0)
         {
-            FileManagerRootPath = settings.FileManagerRootPath;
+            // Migrate from single path to list
+            if (hasRootPaths)
+            {
+                foreach (var p in settings.FileManagerRootPaths)
+                {
+                    if (!string.IsNullOrWhiteSpace(p) && Directory.Exists(p))
+                        FileManagerRootPaths.Add(p);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(settings.FileManagerRootPath) &&
+                     Directory.Exists(settings.FileManagerRootPath))
+            {
+                FileManagerRootPaths.Add(settings.FileManagerRootPath);
+            }
+
+            expandedPaths = new HashSet<string>(settings.FileManagerExpandedPaths, StringComparer.OrdinalIgnoreCase);
+            hiddenPaths = new HashSet<string>(settings.FileManagerHiddenPaths, StringComparer.OrdinalIgnoreCase);
             RefreshFileManagerTree();
         }
     }
@@ -243,7 +314,8 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
     {
         var entries = await stateService.LoadRecentFilesAsync();
         RecentFiles.Clear();
-        foreach (var entry in entries)
+        var limit = RecentFilesLimit > 0 ? RecentFilesLimit : 50;
+        foreach (var entry in entries.Take(limit))
         {
             RecentFiles.Add(entry);
         }
@@ -251,6 +323,16 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
 
     private async Task LoadWorkspaceGroupsAsync()
     {
+        // Save expanded paths before clearing
+        workspaceExpandedPaths.Clear();
+        foreach (var groupVm in WorkspaceGroups)
+        {
+            foreach (var rootItem in groupVm.RootItems)
+            {
+                CollectWorkspaceExpandedPaths(rootItem);
+            }
+        }
+
         var groups = await stateService.LoadWorkspaceGroupsAsync();
         WorkspaceGroups.Clear();
         foreach (var group in groups)
@@ -261,7 +343,41 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
                 AddRootItemToGroup(vm, rootPath);
             }
             WorkspaceGroups.Add(vm);
+
+            // Restore expanded state
+            foreach (var rootItem in vm.RootItems)
+            {
+                RestoreWorkspaceExpandedPaths(rootItem);
+            }
+
             SetupWatcherForGroup(vm, group);
+        }
+    }
+
+    private void CollectWorkspaceExpandedPaths(WorkspaceItemViewModel item)
+    {
+        if (item.IsExpanded)
+            workspaceExpandedPaths.Add(item.FullPath);
+        foreach (var child in item.Children)
+        {
+            CollectWorkspaceExpandedPaths(child);
+        }
+    }
+
+    private void RestoreWorkspaceExpandedPaths(WorkspaceItemViewModel item)
+    {
+        if (!item.IsFolder) return;
+
+        if (workspaceExpandedPaths.Contains(item.FullPath))
+        {
+            item.IsExpanded = true;
+            if (item.Children.Count == 0)
+                LoadChildren(item);
+
+            foreach (var child in item.Children)
+            {
+                RestoreWorkspaceExpandedPaths(child);
+            }
         }
     }
 
@@ -279,7 +395,7 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         }
 
         OpenPath(path);
-        await stateService.AddRecentFileAsync(path);
+        await stateService.AddRecentFileAsync(path, RecentFilesLimit);
         await LoadRecentFilesAsync();
         RecentStatus = $"已打开：{SelectedRecentFile.DisplayName}";
     }
@@ -290,6 +406,11 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         RecentFiles.Remove(SelectedRecentFile);
         await stateService.SaveRecentFilesAsync(RecentFiles.ToList());
         RecentStatus = "已移除记录。";
+    }
+
+    private void ToggleRecentFiles()
+    {
+        IsRecentFilesExpanded = !IsRecentFilesExpanded;
     }
 
     private async void ClearRecentFiles()
@@ -343,7 +464,6 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         if (group is null) return;
         SelectedWorkspaceGroup = group;
 
-        // Use folder browser dialog pattern
         var folderDialog = new OpenFolderDialog
         {
             Title = "选择要添加的文件夹（或取消后用文件对话框选择文件）"
@@ -418,7 +538,7 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         }
 
         OpenPath(path);
-        await stateService.AddRecentFileAsync(path);
+        await stateService.AddRecentFileAsync(path, RecentFilesLimit);
         await LoadRecentFilesAsync();
         WorkspaceStatus = $"已打开。";
     }
@@ -441,9 +561,77 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
 
         item.IsExpanded = !item.IsExpanded;
 
-        if (item.IsExpanded && item.Children.Count == 0)
+        if (item.IsExpanded)
+        {
+            workspaceExpandedPaths.Add(item.FullPath);
+            if (item.Children.Count == 0)
+            {
+                LoadChildren(item);
+            }
+        }
+        else
+        {
+            workspaceExpandedPaths.Remove(item.FullPath);
+        }
+    }
+
+    public void EnsureWorkspaceChildrenLoaded(WorkspaceItemViewModel item)
+    {
+        if (!item.IsFolder) return;
+        if (item.Children.Count == 0)
         {
             LoadChildren(item);
+        }
+        workspaceExpandedPaths.Add(item.FullPath);
+    }
+
+    private void ExpandAll(object? parameter)
+    {
+        var group = parameter as WorkspaceGroupViewModel;
+        if (group is null) return;
+
+        foreach (var rootItem in group.RootItems)
+        {
+            ExpandRecursive(rootItem);
+        }
+    }
+
+    private void CollapseAll(object? parameter)
+    {
+        var group = parameter as WorkspaceGroupViewModel;
+        if (group is null) return;
+
+        foreach (var rootItem in group.RootItems)
+        {
+            CollapseRecursive(rootItem);
+        }
+    }
+
+    private void ExpandRecursive(WorkspaceItemViewModel item)
+    {
+        if (!item.IsFolder) return;
+
+        item.IsExpanded = true;
+        workspaceExpandedPaths.Add(item.FullPath);
+        if (item.Children.Count == 0)
+        {
+            LoadChildren(item);
+        }
+
+        foreach (var child in item.Children)
+        {
+            ExpandRecursive(child);
+        }
+    }
+
+    private static void CollapseRecursive(WorkspaceItemViewModel item)
+    {
+        if (!item.IsFolder) return;
+        item.IsExpanded = false;
+
+        foreach (var child in item.Children)
+        {
+            CollapseRecursive(child);
         }
     }
 
@@ -538,62 +726,217 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
 
     // ==================== File Manager ====================
 
-    private void BrowseRootPath()
+    private async void AddRootPath()
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "选择文件管理器根目录"
+            Title = "选择要添加的目录"
         };
 
         if (dialog.ShowDialog() == true)
         {
-            FileManagerRootPath = dialog.FolderName;
+            var path = dialog.FolderName;
+            if (FileManagerRootPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
+            {
+                FileManagerStatus = "该目录已在列表中。";
+                return;
+            }
+
+            FileManagerRootPaths.Add(path);
+            SelectedRootPath = path;
             RefreshFileManagerTree();
-            FileManagerStatus = $"已加载目录：{FileManagerRootPath}";
+            FileManagerStatus = $"已添加目录：{path}";
+            await SaveFileManagerSettingsAsync();
         }
+    }
+
+    private async void RemoveRootPath(object? parameter)
+    {
+        var path = parameter as string ?? SelectedRootPath;
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        FileManagerRootPaths.Remove(path);
+        if (SelectedRootPath == path)
+            SelectedRootPath = FileManagerRootPaths.Count > 0 ? FileManagerRootPaths[0] : string.Empty;
+        RefreshFileManagerTree();
+        FileManagerStatus = $"已移除目录：{path}";
+        await SaveFileManagerSettingsAsync();
+    }
+
+    private async Task SaveFileManagerSettingsAsync()
+    {
+        var settings = await settingsStore.LoadAsync();
+        settings.FileManagerRootPath = FileManagerRootPath;
+        settings.FileManagerRootPaths = FileManagerRootPaths.ToList();
+        settings.FileManagerExpandedPaths = expandedPaths.ToList();
+        settings.FileManagerHiddenPaths = hiddenPaths.ToList();
+        await settingsStore.SaveAsync(settings);
+    }
+
+    private async Task SaveExpandedPathsAsync()
+    {
+        var settings = await settingsStore.LoadAsync();
+        settings.FileManagerExpandedPaths = expandedPaths.ToList();
+        settings.FileManagerHiddenPaths = hiddenPaths.ToList();
+        await settingsStore.SaveAsync(settings);
     }
 
     public void RefreshFileManagerTree()
     {
+        CollectExpandedPaths(FileManagerTree);
+        var checkedPaths = CollectCheckedPaths(FileManagerTree);
+
         FileManagerTree.Clear();
-        if (string.IsNullOrWhiteSpace(FileManagerRootPath) || !Directory.Exists(FileManagerRootPath))
-        {
+        SelectedFileManagerItem = null;
+
+        if (FileManagerRootPaths.Count == 0)
             return;
+
+        foreach (var rootPath in FileManagerRootPaths)
+        {
+            if (!Directory.Exists(rootPath)) continue;
+
+            var rootItem = new FileManagerItem
+            {
+                DisplayName = new DirectoryInfo(rootPath).Name,
+                FullPath = rootPath,
+                IsFolder = true,
+                IsExpanded = expandedPaths.Contains(rootPath)
+            };
+            rootItem.PropertyChanged += FileManagerItem_PropertyChanged;
+            FileManagerTree.Add(rootItem);
+            BuildFileManagerTree(rootItem.Children, rootPath, rootItem);
         }
 
-        BuildFileManagerTree(FileManagerTree, FileManagerRootPath);
+        RestoreExpandedState(FileManagerTree);
+        RestoreCheckedState(FileManagerTree, checkedPaths);
+        UpdateHasCheckedItems();
     }
 
-    private void BuildFileManagerTree(ObservableCollection<FileManagerItem> parentCollection, string path)
+    private void CollectExpandedPaths(IEnumerable<FileManagerItem> items)
+    {
+        foreach (var item in items)
+        {
+            if (item.IsExpanded)
+                expandedPaths.Add(item.FullPath);
+            CollectExpandedPaths(item.Children);
+        }
+    }
+
+    private HashSet<string> CollectCheckedPaths(IEnumerable<FileManagerItem> items)
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CollectCheckedPathsInternal(items, paths);
+        return paths;
+    }
+
+    private void CollectCheckedPathsInternal(IEnumerable<FileManagerItem> items, HashSet<string> paths)
+    {
+        foreach (var item in items)
+        {
+            if (item.IsChecked)
+                paths.Add(item.FullPath);
+            CollectCheckedPathsInternal(item.Children, paths);
+        }
+    }
+
+    private void RestoreExpandedState(IEnumerable<FileManagerItem> items)
+    {
+        foreach (var item in items)
+        {
+            if (expandedPaths.Contains(item.FullPath))
+                item.IsExpanded = true;
+            RestoreExpandedState(item.Children);
+        }
+    }
+
+    private static void RestoreCheckedState(IEnumerable<FileManagerItem> items, HashSet<string> checkedPaths)
+    {
+        foreach (var item in items)
+        {
+            if (checkedPaths.Contains(item.FullPath))
+                item.IsChecked = true;
+            RestoreCheckedState(item.Children, checkedPaths);
+        }
+    }
+
+    private void BuildFileManagerTree(ObservableCollection<FileManagerItem> parentCollection, string path, FileManagerItem? parent)
     {
         try
         {
             foreach (var dir in Directory.GetDirectories(path))
             {
+                if (hiddenPaths.Contains(dir)) continue;
+
                 var dirItem = new FileManagerItem
                 {
                     DisplayName = Path.GetFileName(dir),
                     FullPath = dir,
-                    IsFolder = true
+                    IsFolder = true,
+                    IsExpanded = expandedPaths.Contains(dir),
+                    Parent = parent
                 };
+                dirItem.PropertyChanged += FileManagerItem_PropertyChanged;
                 parentCollection.Add(dirItem);
-                BuildFileManagerTree(dirItem.Children, dir);
+                BuildFileManagerTree(dirItem.Children, dir, dirItem);
             }
 
             foreach (var file in Directory.GetFiles(path))
             {
-                parentCollection.Add(new FileManagerItem
+                if (hiddenPaths.Contains(file)) continue;
+
+                var fileItem = new FileManagerItem
                 {
                     DisplayName = Path.GetFileName(file),
                     FullPath = file,
-                    IsFolder = false
-                });
+                    IsFolder = false,
+                    Parent = parent
+                };
+                fileItem.PropertyChanged += FileManagerItem_PropertyChanged;
+                parentCollection.Add(fileItem);
             }
         }
         catch
         {
             // Skip inaccessible directories
         }
+    }
+
+    private void FileManagerItem_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(FileManagerItem.IsChecked))
+        {
+            UpdateHasCheckedItems();
+        }
+        else if (e.PropertyName == nameof(FileManagerItem.IsExpanded))
+        {
+            if (sender is FileManagerItem item)
+            {
+                if (item.IsExpanded)
+                    expandedPaths.Add(item.FullPath);
+                else
+                    expandedPaths.Remove(item.FullPath);
+                _ = SaveExpandedPathsAsync();
+            }
+        }
+    }
+
+    private void UpdateHasCheckedItems()
+    {
+        HasCheckedItems = HasAnyCheckedItems(FileManagerTree);
+        (DeleteSelectedItemsCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (OpenSelectedItemsCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (HideSelectedItemsCommand as RelayCommand)?.RaiseCanExecuteChanged();
+    }
+
+    private static bool HasAnyCheckedItems(IEnumerable<FileManagerItem> items)
+    {
+        foreach (var item in items)
+        {
+            if (item.IsChecked) return true;
+            if (HasAnyCheckedItems(item.Children)) return true;
+        }
+        return false;
     }
 
     private async void OpenFileManagerItem()
@@ -607,10 +950,46 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
             return;
         }
 
+        ExpandAncestors(SelectedFileManagerItem);
+
         OpenPath(path);
-        await stateService.AddRecentFileAsync(path);
+        await stateService.AddRecentFileAsync(path, RecentFilesLimit);
         await LoadRecentFilesAsync();
         FileManagerStatus = $"已打开：{SelectedFileManagerItem.DisplayName}";
+    }
+
+    private void ExpandAncestors(FileManagerItem item)
+    {
+        var ancestor = item.Parent;
+        while (ancestor is not null)
+        {
+            ancestor.IsExpanded = true;
+            ancestor = ancestor.Parent;
+        }
+    }
+
+    private async void OpenSelectedItems()
+    {
+        var checkedItems = new List<FileManagerItem>();
+        CollectCheckedItems(FileManagerTree, checkedItems);
+
+        if (checkedItems.Count == 0) return;
+
+        var count = 0;
+        foreach (var item in checkedItems)
+        {
+            ExpandAncestors(item);
+
+            var path = item.FullPath;
+            if (!Directory.Exists(path) && !File.Exists(path)) continue;
+
+            OpenPath(path);
+            await stateService.AddRecentFileAsync(path, RecentFilesLimit);
+            count++;
+        }
+
+        await LoadRecentFilesAsync();
+        FileManagerStatus = $"已批量打开 {count} 个项目。";
     }
 
     private void DeleteFileManagerItem()
@@ -618,9 +997,21 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         if (SelectedFileManagerItem is null) return;
 
         var path = SelectedFileManagerItem.FullPath;
+        var displayName = SelectedFileManagerItem.DisplayName;
+        var isFolder = SelectedFileManagerItem.IsFolder;
+
+        var typeName = isFolder ? "文件夹" : "文件";
+        var confirm = MessageBox.Show(
+            $"确定要删除{typeName} \"{displayName}\" 吗？\n\n此操作将永久删除实际文件，不可撤销。",
+            "确认删除",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
         try
         {
-            if (SelectedFileManagerItem.IsFolder)
+            if (isFolder)
             {
                 Directory.Delete(path, true);
             }
@@ -628,12 +1019,115 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
             {
                 File.Delete(path);
             }
-            FileManagerStatus = $"已删除：{SelectedFileManagerItem.DisplayName}";
+            FileManagerStatus = $"已删除：{displayName}";
             RefreshFileManagerTree();
         }
         catch (Exception ex)
         {
             FileManagerStatus = $"删除失败：{ex.Message}";
+        }
+    }
+
+    private void DeleteSelectedItems()
+    {
+        var checkedItems = new List<FileManagerItem>();
+        CollectCheckedItems(FileManagerTree, checkedItems);
+
+        if (checkedItems.Count == 0) return;
+
+        var confirm = MessageBox.Show(
+            $"确定要删除选中的 {checkedItems.Count} 个项目吗？\n\n此操作将永久删除实际文件，不可撤销。",
+            "批量删除确认",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        var deleted = 0;
+        var errors = 0;
+        foreach (var item in checkedItems)
+        {
+            try
+            {
+                if (item.IsFolder)
+                    Directory.Delete(item.FullPath, true);
+                else
+                    File.Delete(item.FullPath);
+                deleted++;
+            }
+            catch
+            {
+                errors++;
+            }
+        }
+
+        FileManagerStatus = errors > 0
+            ? $"已删除 {deleted} 个项目，{errors} 个失败。"
+            : $"已删除 {deleted} 个项目。";
+        RefreshFileManagerTree();
+    }
+
+    private async void HideSelectedItem()
+    {
+        if (SelectedFileManagerItem is null) return;
+
+        var path = SelectedFileManagerItem.FullPath;
+        var displayName = SelectedFileManagerItem.DisplayName;
+
+        // Don't hide root path items
+        if (FileManagerRootPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
+        {
+            FileManagerStatus = "不能隐藏根目录，请使用移除目录功能。";
+            return;
+        }
+
+        hiddenPaths.Add(path);
+        FileManagerStatus = $"已从显示中移除：{displayName}";
+        await SaveExpandedPathsAsync();
+        RefreshFileManagerTree();
+    }
+
+    private async void HideSelectedItems()
+    {
+        var checkedItems = new List<FileManagerItem>();
+        CollectCheckedItems(FileManagerTree, checkedItems);
+
+        if (checkedItems.Count == 0) return;
+
+        var count = 0;
+        foreach (var item in checkedItems)
+        {
+            if (FileManagerRootPaths.Contains(item.FullPath, StringComparer.OrdinalIgnoreCase))
+                continue;
+            hiddenPaths.Add(item.FullPath);
+            count++;
+        }
+
+        FileManagerStatus = $"已从显示中移除 {count} 个项目。";
+        await SaveExpandedPathsAsync();
+        RefreshFileManagerTree();
+    }
+
+    private void ShowAll()
+    {
+        if (hiddenPaths.Count == 0)
+        {
+            FileManagerStatus = "没有隐藏的项目。";
+            return;
+        }
+
+        hiddenPaths.Clear();
+        _ = SaveExpandedPathsAsync();
+        RefreshFileManagerTree();
+        FileManagerStatus = "已恢复所有隐藏项目。";
+    }
+
+    private void CollectCheckedItems(IEnumerable<FileManagerItem> items, List<FileManagerItem> result)
+    {
+        foreach (var item in items)
+        {
+            if (item.IsChecked) result.Add(item);
+            CollectCheckedItems(item.Children, result);
         }
     }
 
@@ -669,9 +1163,13 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
 
     private void AddNewFile()
     {
-        if (string.IsNullOrWhiteSpace(NewFileName) || string.IsNullOrWhiteSpace(FileManagerRootPath)) return;
+        if (string.IsNullOrWhiteSpace(NewFileName) || FileManagerRootPaths.Count == 0) return;
 
-        var newPath = Path.Combine(FileManagerRootPath, NewFileName.Trim());
+        var targetRoot = !string.IsNullOrWhiteSpace(SelectedRootPath) && FileManagerRootPaths.Contains(SelectedRootPath)
+            ? SelectedRootPath
+            : FileManagerRootPaths[0];
+
+        var newPath = Path.Combine(targetRoot, NewFileName.Trim());
         try
         {
             File.Create(newPath).Close();

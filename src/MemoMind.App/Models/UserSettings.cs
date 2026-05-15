@@ -13,7 +13,11 @@ public class UserSettings
     public bool ShowRecentFiles { get; set; } = true;
     public bool ShowWorkspaceGroups { get; set; } = true;
     public bool ShowFileManager { get; set; } = true;
+    public int RecentFilesLimit { get; set; } = 50;
     public string FileManagerRootPath { get; set; } = string.Empty;
+    public List<string> FileManagerRootPaths { get; set; } = [];
+    public List<string> FileManagerExpandedPaths { get; set; } = [];
+    public List<string> FileManagerHiddenPaths { get; set; } = [];
     public List<string>? SidebarPageIds { get; set; }
     public List<string>? HomePageIds { get; set; }
 }

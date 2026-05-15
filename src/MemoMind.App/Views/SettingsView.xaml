@@ -150,6 +150,18 @@
                               IsChecked="{Binding ShowFileManager}" />
                 </StackPanel>
 
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="180" />
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Text="保留最近打开条数（5-200）" />
+                    <TextBox Grid.Column="1" Padding="8,6"
+                             Text="{Binding RecentFilesLimit, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+
                 <Grid Margin="0,6,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="120" />

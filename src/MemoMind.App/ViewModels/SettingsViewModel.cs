@@ -30,6 +30,7 @@ public class SettingsViewModel : ViewModelBase
     private bool showWorkspaceGroups = true;
     private bool showFileManager = true;
     private string fileManagerRootPath = string.Empty;
+    private int recentFilesLimit = 50;
 
     public SettingsViewModel()
         : this(App.Services.GetRequiredService<IAppSettingsStore>())
@@ -200,6 +201,12 @@ public class SettingsViewModel : ViewModelBase
         set { fileManagerRootPath = value; OnPropertyChanged(); }
     }
 
+    public int RecentFilesLimit
+    {
+        get => recentFilesLimit;
+        set { recentFilesLimit = Math.Clamp(value, 5, 200); OnPropertyChanged(); }
+    }
+
     public ObservableCollection<PageVisibilityOptionViewModel> SidebarOptions { get; }
 
     public ObservableCollection<PageVisibilityOptionViewModel> HomeOptions { get; }
@@ -257,6 +264,7 @@ public class SettingsViewModel : ViewModelBase
         ShowWorkspaceGroups = settings.ShowWorkspaceGroups;
         ShowFileManager = settings.ShowFileManager;
         FileManagerRootPath = settings.FileManagerRootPath;
+        RecentFilesLimit = settings.RecentFilesLimit > 0 ? settings.RecentFilesLimit : 50;
         ApplySavedVisibility(settings);
         RefreshSettingsAwarePages(settings);
 
@@ -301,6 +309,15 @@ public class SettingsViewModel : ViewModelBase
 
     private async Task SaveAsync()
     {
+        // Merge with current on-disk settings to preserve values updated by other VMs (e.g. FileWorkspace)
+        var currentSettings = await settingsStore.LoadAsync();
+        var resolvedRootPath = !string.IsNullOrWhiteSpace(FileManagerRootPath)
+            ? FileManagerRootPath
+            : currentSettings.FileManagerRootPath;
+        var resolvedRootPaths = currentSettings.FileManagerRootPaths;
+        var resolvedExpandedPaths = currentSettings.FileManagerExpandedPaths;
+        var resolvedHiddenPaths = currentSettings.FileManagerHiddenPaths;
+
         var settings = new UserSettings
         {
             ApiKey = ApiKey,
@@ -314,7 +331,11 @@ public class SettingsViewModel : ViewModelBase
             ShowRecentFiles = ShowRecentFiles,
             ShowWorkspaceGroups = ShowWorkspaceGroups,
             ShowFileManager = ShowFileManager,
-            FileManagerRootPath = FileManagerRootPath,
+            RecentFilesLimit = RecentFilesLimit,
+            FileManagerRootPath = resolvedRootPath,
+            FileManagerRootPaths = resolvedRootPaths,
+            FileManagerExpandedPaths = resolvedExpandedPaths,
+            FileManagerHiddenPaths = resolvedHiddenPaths,
             SidebarPageIds = SidebarOptions.Where(option => option.IsSelected).Select(option => option.Id).ToList(),
             HomePageIds = HomeOptions.Where(option => option.IsSelected).Select(option => option.Id).ToList()
         };
