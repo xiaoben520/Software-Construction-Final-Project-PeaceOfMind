@@ -55,6 +55,7 @@ public partial class App : Application
         services.AddTransient<FileWorkspaceViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<CyberPlantViewModel>();
+        services.AddTransient<PomodoroAlarmViewModel>();
         Services = services.BuildServiceProvider();
 
         var settingsStore = Services.GetRequiredService<IAppSettingsStore>();

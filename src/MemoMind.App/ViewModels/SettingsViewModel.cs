@@ -26,10 +26,16 @@ public class SettingsViewModel : ViewModelBase
     private string statusMessage = "设置将保存到本地配置文件。";
     private bool suppressLayoutPreview;
     private int selectedProviderIndex;
-    private bool showRecentFiles = true;
-    private bool showWorkspaceGroups = true;
-    private bool showFileManager = true;
-    private string fileManagerRootPath = string.Empty;
+
+    // Sound & popup settings
+    private bool pomodoroSoundEnabled = true;
+    private bool alarmSoundEnabled = true;
+    private bool countdownSoundEnabled = true;
+    private bool pomodoroPopupEnabled = true;
+    private bool alarmPopupEnabled = true;
+    private bool countdownPopupEnabled = true;
+    private bool useCustomSound;
+    private string customSoundPath = string.Empty;
 
     public SettingsViewModel()
         : this(App.Services.GetRequiredService<IAppSettingsStore>())
@@ -47,6 +53,7 @@ public class SettingsViewModel : ViewModelBase
         SaveCommand = new RelayCommand(_ => Save());
         LoadCommand = new RelayCommand(_ => Load());
         DeleteDatabaseCommand = new RelayCommand(_ => DeleteDatabase());
+        BrowseSoundCommand = new RelayCommand(_ => BrowseSoundFile());
         _ = LoadAsync();
     }
 
@@ -176,29 +183,58 @@ public class SettingsViewModel : ViewModelBase
     public ObservableCollection<AiProviderPreset> ProviderOptions { get; }
     public ObservableCollection<string> ModelOptions { get; }
 
-    public bool ShowRecentFiles
+    // Sound & popup properties
+    public bool PomodoroSoundEnabled
     {
-        get => showRecentFiles;
-        set { showRecentFiles = value; OnPropertyChanged(); }
+        get => pomodoroSoundEnabled;
+        set { pomodoroSoundEnabled = value; OnPropertyChanged(); }
     }
 
-    public bool ShowWorkspaceGroups
+    public bool AlarmSoundEnabled
     {
-        get => showWorkspaceGroups;
-        set { showWorkspaceGroups = value; OnPropertyChanged(); }
+        get => alarmSoundEnabled;
+        set { alarmSoundEnabled = value; OnPropertyChanged(); }
     }
 
-    public bool ShowFileManager
+    public bool CountdownSoundEnabled
     {
-        get => showFileManager;
-        set { showFileManager = value; OnPropertyChanged(); }
+        get => countdownSoundEnabled;
+        set { countdownSoundEnabled = value; OnPropertyChanged(); }
     }
 
-    public string FileManagerRootPath
+    public bool PomodoroPopupEnabled
     {
-        get => fileManagerRootPath;
-        set { fileManagerRootPath = value; OnPropertyChanged(); }
+        get => pomodoroPopupEnabled;
+        set { pomodoroPopupEnabled = value; OnPropertyChanged(); }
     }
+
+    public bool AlarmPopupEnabled
+    {
+        get => alarmPopupEnabled;
+        set { alarmPopupEnabled = value; OnPropertyChanged(); }
+    }
+
+    public bool CountdownPopupEnabled
+    {
+        get => countdownPopupEnabled;
+        set { countdownPopupEnabled = value; OnPropertyChanged(); }
+    }
+
+    public bool UseCustomSound
+    {
+        get => useCustomSound;
+        set { useCustomSound = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsCustomSoundPathVisible)); }
+    }
+
+    public string CustomSoundPath
+    {
+        get => customSoundPath;
+        set { customSoundPath = value ?? string.Empty; OnPropertyChanged(); }
+    }
+
+    public bool IsCustomSoundPathVisible => useCustomSound;
+
+    public ICommand BrowseSoundCommand { get; }
 
     public ObservableCollection<PageVisibilityOptionViewModel> SidebarOptions { get; }
 
@@ -253,10 +289,17 @@ public class SettingsViewModel : ViewModelBase
         EnableReminder = settings.EnableReminder;
         ReminderHour = settings.ReminderHour;
         Theme = string.IsNullOrWhiteSpace(settings.Theme) ? "System" : settings.Theme;
-        ShowRecentFiles = settings.ShowRecentFiles;
-        ShowWorkspaceGroups = settings.ShowWorkspaceGroups;
-        ShowFileManager = settings.ShowFileManager;
-        FileManagerRootPath = settings.FileManagerRootPath;
+
+        // Sound & popup settings
+        PomodoroSoundEnabled = settings.PomodoroSoundEnabled;
+        AlarmSoundEnabled = settings.AlarmSoundEnabled;
+        CountdownSoundEnabled = settings.CountdownSoundEnabled;
+        PomodoroPopupEnabled = settings.PomodoroPopupEnabled;
+        AlarmPopupEnabled = settings.AlarmPopupEnabled;
+        CountdownPopupEnabled = settings.CountdownPopupEnabled;
+        UseCustomSound = settings.UseCustomSound;
+        CustomSoundPath = settings.CustomSoundPath ?? string.Empty;
+
         ApplySavedVisibility(settings);
         RefreshSettingsAwarePages(settings);
 
@@ -311,10 +354,14 @@ public class SettingsViewModel : ViewModelBase
             EnableReminder = EnableReminder,
             ReminderHour = ReminderHour,
             Theme = Theme,
-            ShowRecentFiles = ShowRecentFiles,
-            ShowWorkspaceGroups = ShowWorkspaceGroups,
-            ShowFileManager = ShowFileManager,
-            FileManagerRootPath = FileManagerRootPath,
+            PomodoroSoundEnabled = PomodoroSoundEnabled,
+            AlarmSoundEnabled = AlarmSoundEnabled,
+            CountdownSoundEnabled = CountdownSoundEnabled,
+            PomodoroPopupEnabled = PomodoroPopupEnabled,
+            AlarmPopupEnabled = AlarmPopupEnabled,
+            CountdownPopupEnabled = CountdownPopupEnabled,
+            UseCustomSound = UseCustomSound,
+            CustomSoundPath = CustomSoundPath,
             SidebarPageIds = SidebarOptions.Where(option => option.IsSelected).Select(option => option.Id).ToList(),
             HomePageIds = HomeOptions.Where(option => option.IsSelected).Select(option => option.Id).ToList()
         };
@@ -492,6 +539,21 @@ public class SettingsViewModel : ViewModelBase
             {
                 settingsAwareViewModel.ApplySettings(settings);
             }
+        }
+    }
+
+    private void BrowseSoundFile()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择自定义音效文件",
+            Filter = "音频文件 (*.wav;*.mp3;*.wma)|*.wav;*.mp3;*.wma|WAV 文件 (*.wav)|*.wav|所有文件 (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            CustomSoundPath = dialog.FileName;
         }
     }
 }

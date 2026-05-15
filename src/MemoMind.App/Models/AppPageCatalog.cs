@@ -54,6 +54,15 @@ public static class AppPageCatalog
         },
         new AppPageDefinition
         {
+            Id = "pomodoro-alarm",
+            Title = "专注 & 闹钟",
+            Description = "番茄钟计时、定时闹钟与倒计时。",
+            ViewModelType = typeof(PomodoroAlarmViewModel),
+            DefaultInSidebar = true,
+            DefaultOnHome = true
+        },
+        new AppPageDefinition
+        {
             Id = "settings",
             Title = "设置",
             Description = "调整系统配置与页面可见性。",

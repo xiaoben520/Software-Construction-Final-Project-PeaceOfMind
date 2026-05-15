@@ -91,6 +91,96 @@
 
                 <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,8,0,16" />
 
+                <TextBlock Text="番茄钟 &#x26; 闹钟设置" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                <TextBlock Text="控制番茄钟、闹钟和倒计时的音效与弹窗提醒。" Margin="0,0,0,10"
+                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+
+                <!-- Pomodoro settings -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="番茄钟" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}" />
+                    <CheckBox Grid.Row="0" Grid.Column="1" Content="启用音效"
+                              IsChecked="{Binding PomodoroSoundEnabled}" Margin="0,0,0,4" />
+                    <CheckBox Grid.Row="1" Grid.Column="1" Content="启用弹窗提醒"
+                              IsChecked="{Binding PomodoroPopupEnabled}" />
+                </Grid>
+
+                <!-- Alarm settings -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="时间闹钟" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}" />
+                    <CheckBox Grid.Row="0" Grid.Column="1" Content="启用音效"
+                              IsChecked="{Binding AlarmSoundEnabled}" Margin="0,0,0,4" />
+                    <CheckBox Grid.Row="1" Grid.Column="1" Content="启用弹窗提醒"
+                              IsChecked="{Binding AlarmPopupEnabled}" />
+                </Grid>
+
+                <!-- Countdown settings -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="倒计时" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}" />
+                    <CheckBox Grid.Row="0" Grid.Column="1" Content="启用音效"
+                              IsChecked="{Binding CountdownSoundEnabled}" Margin="0,0,0,4" />
+                    <CheckBox Grid.Row="1" Grid.Column="1" Content="启用弹窗提醒"
+                              IsChecked="{Binding CountdownPopupEnabled}" />
+                </Grid>
+
+                <!-- Custom sound -->
+                <Grid Margin="0,0,0,8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="自定义音效" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}" />
+                    <CheckBox Grid.Row="0" Grid.Column="1" Content="使用自定义音频文件（替代系统音效）"
+                              IsChecked="{Binding UseCustomSound}" Margin="0,0,0,6" />
+                    <Grid Grid.Row="1" Grid.Column="1"
+                          Visibility="{Binding IsCustomSoundPathVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{Binding CustomSoundPath, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="28" VerticalContentAlignment="Center"
+                                 IsReadOnly="True" Background="{DynamicResource ListItemBrush}" />
+                        <Button Grid.Column="1" Content="浏览..." Width="60" Height="28" Margin="6,0,0,0"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                Command="{Binding BrowseSoundCommand}" />
+                    </Grid>
+                </Grid>
+
+                <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,8,0,16" />
+
                 <TextBlock Text="左侧栏目显示" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
                            Foreground="{DynamicResource PrimaryTextBrush}" />
                 <TextBlock Text="控制在左侧导航栏中显示哪些页面。" Margin="0,0,0,8"
@@ -136,34 +226,10 @@
 
                 <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,16" />
 
-                <TextBlock Text="文件工作区模块显示" Margin="0,16,0,10" FontSize="18" FontWeight="SemiBold"
-                           Foreground="{DynamicResource PrimaryTextBrush}" />
-                <TextBlock Text="控制在文件工作区页面中显示哪些功能模块。" Margin="0,0,0,8"
-                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
-
-                <StackPanel Margin="0,0,0,8">
-                    <CheckBox Content="显示「最近打开」模块 — 自动记录最近打开的文件和文件夹"
-                              IsChecked="{Binding ShowRecentFiles}" Margin="0,0,0,6" />
-                    <CheckBox Content="显示「保存工作区」模块 — 自定义分组管理常用文件和文件夹"
-                              IsChecked="{Binding ShowWorkspaceGroups}" Margin="0,0,0,6" />
-                    <CheckBox Content="显示「小文件管理器」模块 — 简化的文件浏览与管理"
-                              IsChecked="{Binding ShowFileManager}" />
-                </StackPanel>
-
-                <Grid Margin="0,6,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="120" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="管理器默认目录" />
-                    <TextBox Grid.Column="1" Padding="10,6"
-                             Text="{Binding FileManagerRootPath, UpdateSourceTrigger=PropertyChanged}" />
-                </Grid>
-
                 <TextBlock Text="测试工具" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
-                        Foreground="{DynamicResource PrimaryTextBrush}" />
+                       Foreground="{DynamicResource PrimaryTextBrush}" />
                 <TextBlock Text="用于测试环境清理：删除本地数据库后需重启应用。" Margin="0,0,0,12"
-                        Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
                 <Button Content="删除数据库" Padding="16,8" HorizontalAlignment="Left"
                     Style="{StaticResource SidebarButtonStyle}"
                     Command="{Binding DeleteDatabaseCommand}" />

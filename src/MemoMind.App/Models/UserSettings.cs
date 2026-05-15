@@ -16,4 +16,14 @@ public class UserSettings
     public string FileManagerRootPath { get; set; } = string.Empty;
     public List<string>? SidebarPageIds { get; set; }
     public List<string>? HomePageIds { get; set; }
+
+    // Sound & popup settings for timer/alarm module
+    public bool PomodoroSoundEnabled { get; set; } = true;
+    public bool AlarmSoundEnabled { get; set; } = true;
+    public bool CountdownSoundEnabled { get; set; } = true;
+    public bool PomodoroPopupEnabled { get; set; } = true;
+    public bool AlarmPopupEnabled { get; set; } = true;
+    public bool CountdownPopupEnabled { get; set; } = true;
+    public bool UseCustomSound { get; set; } = false;
+    public string CustomSoundPath { get; set; } = string.Empty;
 }
