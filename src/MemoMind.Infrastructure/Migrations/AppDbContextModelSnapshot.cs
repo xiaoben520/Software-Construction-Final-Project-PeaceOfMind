@@ -118,6 +118,53 @@ public partial class AppDbContextModelSnapshot : ModelSnapshot
             b.ToTable("PomodoroSessions");
         });
 
+        modelBuilder.Entity("MemoMind.Core.Models.MemoryItem", b =>
+        {
+            b.Property<int>("Id")
+                .ValueGeneratedOnAdd()
+                .HasColumnType("INTEGER");
+
+            b.Property<string>("Content")
+                .IsRequired()
+                .HasColumnType("TEXT");
+
+            b.Property<string>("Category")
+                .IsRequired()
+                .HasColumnType("TEXT");
+
+            b.Property<DateTime>("CreatedAt")
+                .HasColumnType("TEXT");
+
+            b.HasKey("Id");
+
+            b.ToTable("Memories");
+        });
+
+        modelBuilder.Entity("MemoMind.Core.Models.ChatMessageRecord", b =>
+        {
+            b.Property<int>("Id")
+                .ValueGeneratedOnAdd()
+                .HasColumnType("INTEGER");
+
+            b.Property<string>("Content")
+                .IsRequired()
+                .HasColumnType("TEXT");
+
+            b.Property<bool>("IsUserMessage")
+                .HasColumnType("INTEGER");
+
+            b.Property<string>("Sender")
+                .IsRequired()
+                .HasColumnType("TEXT");
+
+            b.Property<DateTime>("Time")
+                .HasColumnType("TEXT");
+
+            b.HasKey("Id");
+
+            b.ToTable("ChatMessages");
+        });
+
         modelBuilder.Entity("MemoMind.Core.Models.TaskItem", b =>
         {
             b.Property<int>("Id")

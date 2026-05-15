@@ -15,6 +15,8 @@ public class AppDbContext : DbContext
     public DbSet<FileWorkspace> FileWorkspaces => Set<FileWorkspace>();
     public DbSet<PomodoroSession> PomodoroSessions => Set<PomodoroSession>();
     public DbSet<CustomPlantProfile> CustomPlantProfiles => Set<CustomPlantProfile>();
+    public DbSet<ChatMessageRecord> ChatMessages => Set<ChatMessageRecord>();
+    public DbSet<MemoryItem> Memories => Set<MemoryItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,5 +28,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<FileWorkspace>().HasKey(x => x.Id);
         modelBuilder.Entity<PomodoroSession>().HasKey(x => x.Id);
         modelBuilder.Entity<CustomPlantProfile>().HasKey(x => x.Id);
+        modelBuilder.Entity<ChatMessageRecord>().HasKey(x => x.Id);
+        modelBuilder.Entity<MemoryItem>().HasKey(x => x.Id);
     }
 }

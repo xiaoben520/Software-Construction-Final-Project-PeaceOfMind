@@ -20,7 +20,7 @@ public class AiProviderPreset
         {
             Name = "DeepSeek",
             BaseUrl = "https://api.deepseek.com",
-            Models = ["deepseek-v4-pro", "deepseek-v4-flash"]
+            Models = ["deepseek-chat", "deepseek-reasoner"]
         },
         new AiProviderPreset
         {

@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MemoMind.App.ViewModels;
 
-public class TaskBoardViewModel : ViewModelBase
+public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
 {
     private readonly ITaskService taskService;
     private readonly DispatcherTimer countdownTimer;
@@ -323,6 +323,11 @@ public class TaskBoardViewModel : ViewModelBase
 
     public static IReadOnlyList<int> HourOptions { get; } = [0, 1, 2, 3, 4, 5, 6, 7, 8];
     public static IReadOnlyList<int> MinuteOptions { get; } = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+    public async Task OnNavigatedToAsync()
+    {
+        await LoadTasksAsync();
+    }
 
     private async Task LoadTasksAsync()
     {
