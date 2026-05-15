@@ -17,7 +17,7 @@ public class SettingsViewModel : ViewModelBase
     private MainViewModel? mainViewModel;
     private string apiKey = string.Empty;
     private string aiBaseUrl = "https://api.openai.com/v1";
-    private string aiModel = "gpt-3.5-turbo";
+    private string aiModel = "deepseek-chat";
     private string aiPersona = "你是一个温和、会倾听、会整理事项的 AI 心灵伙伴。说话简洁、友好、有共情，优先帮用户把事情理清。";
     private bool enableAi;
     private bool enableReminder = true;
@@ -281,7 +281,7 @@ public class SettingsViewModel : ViewModelBase
         var settings = await settingsStore.LoadAsync();
         ApiKey = settings.ApiKey;
         AiBaseUrl = string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl;
-        AiModel = string.IsNullOrWhiteSpace(settings.AiModel) ? "gpt-3.5-turbo" : settings.AiModel;
+        AiModel = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
         AiPersona = string.IsNullOrWhiteSpace(settings.AiPersona)
             ? "你是一个温和、会倾听、会整理事项的 AI 心灵伙伴。说话简洁、友好、有共情，优先帮用户把事情理清。"
             : settings.AiPersona;

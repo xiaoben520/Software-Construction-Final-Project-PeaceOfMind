@@ -64,6 +64,11 @@ public class MainViewModel : ViewModelBase
         {
             settingsViewModel.SyncFromCurrentLayout();
         }
+
+        if (targetPage.PageViewModel is IPageLifecycleAware lifecycleAware)
+        {
+            _ = lifecycleAware.OnNavigatedToAsync();
+        }
     }
 
     public void ApplyLayout(IEnumerable<string> sidebarPageIds, IEnumerable<string> homePageIds)
