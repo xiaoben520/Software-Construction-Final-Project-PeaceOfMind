@@ -38,6 +38,10 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
     private DateTime? editDueDate;
     private bool editIsUrgent;
     private string editStatus = "Todo";
+    private int newTaskEstimatedHours = 1;
+    private int newTaskEstimatedMinutes;
+    private int editEstimatedHours = 1;
+    private int editEstimatedMinutes;
 
     public TaskBoardViewModel()
         : this(App.Services.GetRequiredService<ITaskService>())
@@ -54,9 +58,7 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         AddTaskCommand = new RelayCommand(_ => AddTask(), _ => !string.IsNullOrWhiteSpace(NewTaskTitle));
         DeleteTaskCommand = new RelayCommand(_ => DeleteTask(), _ => SelectedTask is not null);
         CompleteTaskCommand = new RelayCommand(p => CompleteTask(p as TaskItem));
-        StartTaskCommand = new RelayCommand(p => ShowTimePicker(p as TaskItem));
-        ConfirmStartCommand = new RelayCommand(p => ConfirmStart(p as TaskItem));
-        CancelTimerCommand = new RelayCommand(p => CancelTimer(p as TaskItem));
+        StartTaskCommand = new RelayCommand(p => ConfirmStart(p as TaskItem));
         PauseTaskCommand = new RelayCommand(p => PauseTask(p as TaskItem));
         ToggleUrgentCommand = new RelayCommand(_ => ToggleUrgent(), _ => SelectedTask is not null);
         StartEditCommand = new RelayCommand(_ => StartEdit(), _ => SelectedTask is not null);
@@ -99,10 +101,13 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
                         task.IsBreakTime = false;
                         task.CountdownEndTime = DateTime.MinValue;
                         task.CountdownDisplay = string.Empty;
+                        task.CountdownProgress = 0;
+                        task.CountdownStatusText = string.Empty;
                     }
                     else
                     {
                         task.IsBreakTime = true;
+                        task.CountdownPhaseSeconds = 300;
                         task.CountdownEndTime = DateTime.Now.AddMinutes(5);
                     }
                 }
@@ -110,8 +115,11 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
                 {
                     var m = secs / 60;
                     var sec = secs % 60;
-                    var label = task.IsBreakTime ? "Break" : "Work";
-                    task.CountdownDisplay = $"{label} {m:D2}:{sec:D2}";
+                    task.CountdownDisplay = $"{m:D2}:{sec:D2}";
+                    task.CountdownProgress = task.CountdownPhaseSeconds > 0
+                        ? (double)secs / task.CountdownPhaseSeconds
+                        : 0;
+                    task.CountdownStatusText = task.IsBreakTime ? "休息中" : "进行中";
                 }
             }
         };
@@ -222,12 +230,34 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         set { editStatus = value; OnPropertyChanged(); }
     }
 
+    public int NewTaskEstimatedHours
+    {
+        get => newTaskEstimatedHours;
+        set { newTaskEstimatedHours = value; OnPropertyChanged(); }
+    }
+
+    public int NewTaskEstimatedMinutes
+    {
+        get => newTaskEstimatedMinutes;
+        set { newTaskEstimatedMinutes = value; OnPropertyChanged(); }
+    }
+
+    public int EditEstimatedHours
+    {
+        get => editEstimatedHours;
+        set { editEstimatedHours = value; OnPropertyChanged(); }
+    }
+
+    public int EditEstimatedMinutes
+    {
+        get => editEstimatedMinutes;
+        set { editEstimatedMinutes = value; OnPropertyChanged(); }
+    }
+
     public ICommand AddTaskCommand { get; }
     public ICommand DeleteTaskCommand { get; }
     public ICommand CompleteTaskCommand { get; }
     public ICommand StartTaskCommand { get; }
-    public ICommand ConfirmStartCommand { get; }
-    public ICommand CancelTimerCommand { get; }
     public ICommand PauseTaskCommand { get; }
     public ICommand ToggleUrgentCommand { get; }
     public ICommand StartEditCommand { get; }
@@ -352,7 +382,9 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
             DueDate = NewTaskDueDate,
             IsUrgent = NewTaskIsUrgent,
             Status = "Todo",
-            SourceType = "Manual"
+            SourceType = "Manual",
+            EstimatedHours = NewTaskEstimatedHours,
+            EstimatedMinutes = NewTaskEstimatedMinutes
         };
 
         await taskService.AddAsync(taskItem);
@@ -364,6 +396,8 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         NewTaskDescription = string.Empty;
         NewTaskDueDate = DateTime.Today;
         NewTaskIsUrgent = false;
+        NewTaskEstimatedHours = 1;
+        NewTaskEstimatedMinutes = 0;
         IsCreatePanelVisible = false;
     }
 
@@ -384,16 +418,12 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         task.Status = "Done";
         task.CompletedAt = DateTime.Now;
         task.CountdownDisplay = string.Empty;
+        task.CountdownProgress = 0;
+        task.CountdownStatusText = string.Empty;
         task.IsBreakTime = false;
         await taskService.UpdateAsync(task);
         SelectedTask = task;
         StatusMessage = "任务已标记为完成。";
-    }
-
-    private void ShowTimePicker(TaskItem? task)
-    {
-        if (task is null) return;
-        task.IsTimePickerVisible = true;
     }
 
     private async void ConfirmStart(TaskItem? task)
@@ -402,18 +432,12 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         var totalSeconds = task.EstimatedHours * 3600 + task.EstimatedMinutes * 60;
         task.Status = "Doing";
         task.CompletedAt = null;
-        task.IsTimePickerVisible = false;
         task.IsBreakTime = false;
+        task.CountdownPhaseSeconds = totalSeconds;
         task.CountdownEndTime = DateTime.Now.AddSeconds(totalSeconds);
         await taskService.UpdateAsync(task);
         SelectedTask = task;
         StatusMessage = $"任务已开工 (预计 {task.EstimatedHours}h{task.EstimatedMinutes:D2}m)。";
-    }
-
-    private void CancelTimer(TaskItem? task)
-    {
-        if (task is null) return;
-        task.IsTimePickerVisible = false;
     }
 
     private async void PauseTask(TaskItem? task)
@@ -422,6 +446,8 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         task.Status = "Todo";
         task.CompletedAt = null;
         task.CountdownDisplay = string.Empty;
+        task.CountdownProgress = 0;
+        task.CountdownStatusText = string.Empty;
         task.IsBreakTime = false;
         await taskService.UpdateAsync(task);
         SelectedTask = task;
@@ -447,6 +473,8 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         EditDueDate = SelectedTask.DueDate;
         EditIsUrgent = SelectedTask.IsUrgent;
         EditStatus = SelectedTask.Status;
+        EditEstimatedHours = SelectedTask.EstimatedHours;
+        EditEstimatedMinutes = SelectedTask.EstimatedMinutes;
         IsEditing = true;
     }
 
@@ -458,6 +486,8 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         SelectedTask.DueDate = EditDueDate;
         SelectedTask.IsUrgent = EditIsUrgent;
         SelectedTask.Status = EditStatus;
+        SelectedTask.EstimatedHours = EditEstimatedHours;
+        SelectedTask.EstimatedMinutes = EditEstimatedMinutes;
         await taskService.UpdateAsync(SelectedTask);
         IsEditing = false;
         EditTitle = string.Empty;
@@ -465,6 +495,8 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         EditDueDate = null;
         EditIsUrgent = false;
         EditStatus = "Todo";
+        EditEstimatedHours = 1;
+        EditEstimatedMinutes = 0;
         ApplyFilter();
         StatusMessage = "任务已更新。";
     }
@@ -477,6 +509,8 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         EditDueDate = null;
         EditIsUrgent = false;
         EditStatus = "Todo";
+        EditEstimatedHours = 1;
+        EditEstimatedMinutes = 0;
     }
 
     private void CancelCreate()
@@ -485,6 +519,8 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         NewTaskDescription = string.Empty;
         NewTaskDueDate = DateTime.Today;
         NewTaskIsUrgent = false;
+        NewTaskEstimatedHours = 1;
+        NewTaskEstimatedMinutes = 0;
         IsCreatePanelVisible = false;
     }
 
