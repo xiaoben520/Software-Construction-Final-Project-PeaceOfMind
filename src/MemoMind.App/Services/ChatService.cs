@@ -1,8 +1,11 @@
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using MemoMind.Core.Interfaces;
+using MemoMind.Core.Models;
 using MemoMind.App.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MemoMind.App.Services;
 
@@ -45,9 +48,12 @@ public class ChatService : IChatService
         "如果用户表达了负面情绪，先承接情绪再表达理解，最后给出轻量建议。" +
         "如果用户提到了任务或计划，可以添加到其他模块对应的模块，同时温和地帮忙梳理。";
 
-    public ChatService(IAppSettingsStore settingsStore)
+    private readonly IServiceScopeFactory scopeFactory;
+
+    public ChatService(IAppSettingsStore settingsStore, IServiceScopeFactory scopeFactory)
     {
         this.settingsStore = settingsStore;
+        this.scopeFactory = scopeFactory;
         httpClient = new HttpClient();
         httpClient.Timeout = TimeSpan.FromSeconds(30);
     }
@@ -70,16 +76,450 @@ public class ChatService : IChatService
         {
             return await CallAiAsync(settings, systemPrompt, inputText);
         }
-        catch
+        catch (Exception ex)
         {
-            return GetOfflineResponse(inputText) + "\n\n（AI 功能不可用，服务暂时无法连接，请检查网络或 API 配置）";
+            return GetOfflineResponse(inputText) + $"\n\n（AI 调用失败：{ex.Message}）";
+        }
+    }
+
+    public async Task<string> SendAsync(string inputText, IReadOnlyList<string> memories)
+    {
+        var augmentedPrompt = BuildMemoryAugmentedPrompt(memories);
+        return await SendAsync(augmentedPrompt, inputText);
+    }
+
+    public async Task<string> SendWithContextAsync(string inputText, IReadOnlyList<string> memories, IReadOnlyList<ChatHistoryItem> history)
+    {
+        var settings = await settingsStore.LoadAsync();
+
+        if (!settings.EnableAi || string.IsNullOrWhiteSpace(settings.ApiKey))
+        {
+            return GetOfflineResponse(inputText) + "\n\n（AI 功能不可用，请在设置中配置并启用 AI）";
+        }
+
+        try
+        {
+            var augmentedPrompt = BuildMemoryAugmentedPrompt(memories);
+            return await CallAiWithHistoryAsync(settings, augmentedPrompt, inputText, history);
+        }
+        catch (Exception ex)
+        {
+            return GetOfflineResponse(inputText) + $"\n\n（AI 调用失败：{ex.Message}）";
+        }
+    }
+
+    public async Task<AgentResponse> SendAgentAsync(string inputText, IReadOnlyList<string> memories, IReadOnlyList<ChatHistoryItem> history)
+    {
+        var settings = await settingsStore.LoadAsync();
+        var result = new AgentResponse { Reply = "", ToolResults = Array.Empty<AgentToolResult>() };
+
+        if (!settings.EnableAi || string.IsNullOrWhiteSpace(settings.ApiKey))
+        {
+            result.Reply = GetOfflineResponse(inputText) + "\n\n（AI 功能不可用，请在设置中配置并启用 AI）";
+            return result;
+        }
+
+        // Try native function calling first
+        try
+        {
+            var basePrompt = BuildMemoryAugmentedPrompt(memories);
+            basePrompt += "\n\n## 任务管理工具\n" +
+                          "你可以调用以下函数来真正操作任务（不是假装操作）：\n" +
+                          "- create_task: 创建新任务（参数：title必填, description选填, due_date选填, is_urgent选填）\n" +
+                          "- list_tasks: 查看所有任务\n" +
+                          "- update_task: 更新任务状态/标题/紧急度（参数：title必填用于查找）\n" +
+                          "- delete_task: 删除任务（参数：title必填用于查找）\n" +
+                          "\n【必须遵守】\n" +
+                          "用户说「创建/添加/新建/记一下/帮我安排」任务时 → 你必须调用 create_task\n" +
+                          "用户说「查看/列出/有哪些/任务列表」 → 你必须调用 list_tasks\n" +
+                          "用户说「完成/标记/修改/更新/改成」任务时 → 你必须调用 update_task\n" +
+                          "用户说「删除/移除/取消/去掉」任务时 → 你必须调用 delete_task\n" +
+                          "不要只用文字说「已经帮你创建了」却不调用工具！调用工具后根据实际结果回复。" +
+                          "如果用户只是在倾诉心情、聊天，则不需要调用工具，正常回复即可。";
+
+            var tools = Infrastructure.Services.AgentToolExecutor.GetAvailableTools();
+            var nativeResult = await CallAiWithToolsAsync(settings, basePrompt, inputText, history, tools);
+
+            // If native tools actually executed (not just diagnostics), return
+            var realTools = new[] { "create_task", "list_tasks", "update_task", "delete_task" };
+            if (nativeResult.ToolResults.Any(tr => realTools.Contains(tr.ToolName)))
+                return nativeResult;
+
+            // If no tools called but user asked for task ops, fall back to text agent
+            if (IsTaskRelatedInput(inputText))
+            {
+                try { return await TryTextAgentAsync(settings, memories, inputText, history); }
+                catch (Exception textEx)
+                {
+                    return new AgentResponse
+                    {
+                        Reply = $"文本指令模式也失败了：{textEx.Message}",
+                        ToolResults = new[] { new AgentToolResult { ToolName = "diagnostic", Message = $"TryTextAgentAsync 异常: {textEx.Message}", Success = false } }
+                    };
+                }
+            }
+
+            return nativeResult;
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            // Native function calling not supported — use text-based agent for task ops
+            if (IsTaskRelatedInput(inputText))
+            {
+                try { return await TryTextAgentAsync(settings, memories, inputText, history); }
+                catch (Exception textEx)
+                {
+                    result.Reply = GetOfflineResponse(inputText) + $"\n\n（AI 调用失败：{textEx.Message}）";
+                    return result;
+                }
+            }
+            // Non-task chat: regular fallback
+            try
+            {
+                var augmentedPrompt = BuildMemoryAugmentedPrompt(memories);
+                var reply = await CallAiWithHistoryAsync(settings, augmentedPrompt, inputText, history);
+                return new AgentResponse { Reply = reply, ToolResults = Array.Empty<AgentToolResult>() };
+            }
+            catch (Exception fallbackEx)
+            {
+                result.Reply = GetOfflineResponse(inputText) + $"\n\n（AI 调用失败：{fallbackEx.Message}）";
+                return result;
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Reply = GetOfflineResponse(inputText) + $"\n\n（AI 调用失败：{ex.Message}）";
+            return result;
+        }
+    }
+
+    private async Task<AgentResponse> TryTextAgentAsync(
+        UserSettings settings,
+        IReadOnlyList<string> memories,
+        string userInput,
+        IReadOnlyList<ChatHistoryItem> history)
+    {
+        var toolResults = new List<AgentToolResult>();
+        toolResults.Add(new AgentToolResult
+        {
+            ToolName = "diagnostic",
+            Message = "原生 Function Calling 不可用，切换到 JSON 指令模式。",
+            Success = true
+        });
+
+        var basePrompt = BuildMemoryAugmentedPrompt(memories);
+        basePrompt += "\n\n## 任务操作协议（必须严格遵守）\n" +
+            "你需要用一个 JSON 对象来回复，格式如下：\n\n" +
+            "{\n" +
+            "  \"action\": \"create_task\",\n" +
+            "  \"args\": {\"title\": \"用户说的任务标题\", \"due_date\": \"2026-06-01 15:00\", \"is_urgent\": false},\n" +
+            "  \"reply\": \"你的自然语言回复\"\n" +
+            "}\n\n" +
+            "action 可选值：create_task, list_tasks, update_task, delete_task, none\n" +
+            "create_task args: title(必填), description(选填), due_date(选填，格式yyyy-MM-dd HH:mm), is_urgent(选填，true/false)\n" +
+            "update_task args: title(必填，用于查找原任务), status(选填Todo/Doing/Done), new_title(选填), is_urgent(选填)\n" +
+            "delete_task args: title(必填，用于查找要删除的任务)\n" +
+            "list_tasks args: {}\n" +
+            "\n【关键规则】\n" +
+            "1. 如果用户要求操作任务（创建/查看/更新/删除），action 填对应的操作名，args 填从用户消息中提取的真实参数\n" +
+            "2. 如果用户只是聊天/倾诉，action 填 \"none\"，args 填 {}\n" +
+            "3. title 必须是用户原话中提到的真实内容，绝不可以用占位符\n" +
+            "4. reply 用自然友好的中文回复用户\n" +
+            "5. 只输出纯 JSON，不要包含 markdown 代码块标记或其他任何文字";
+
+        var rawReply = await CallAiJsonModeAsync(settings, basePrompt, userInput, history);
+
+        toolResults.Add(new AgentToolResult
+        {
+            ToolName = "diagnostic",
+            Message = $"AI 原始回复 (前200字): {Truncate(rawReply, 200)}",
+            Success = true
+        });
+
+        var cleanedReply = rawReply;
+        var jsonStr = rawReply.Trim();
+
+        // Strip markdown code fences if present
+        if (jsonStr.StartsWith("```"))
+        {
+            var start = jsonStr.IndexOf('{');
+            var end = jsonStr.LastIndexOf('}');
+            if (start >= 0 && end > start)
+                jsonStr = jsonStr[start..(end + 1)];
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(jsonStr);
+            var root = doc.RootElement;
+
+            var action = "none";
+            if (root.TryGetProperty("action", out var actionProp))
+                action = actionProp.GetString() ?? "none";
+
+            if (root.TryGetProperty("reply", out var replyProp))
+                cleanedReply = replyProp.GetString() ?? rawReply;
+
+            if (action != "none" && action != "chat")
+            {
+                var argsJson = "{}";
+                if (root.TryGetProperty("args", out var argsProp))
+                    argsJson = argsProp.ToString();
+
+                toolResults.Add(new AgentToolResult
+                {
+                    ToolName = "diagnostic",
+                    Message = $"解析到指令: ACTION={action}, JSON={Truncate(argsJson, 150)}",
+                    Success = true
+                });
+
+                using (var scope = scopeFactory.CreateScope())
+                {
+                    var executor = scope.ServiceProvider.GetRequiredService<IAgentToolExecutor>();
+                    var execResult = await executor.ExecuteToolAsync(action, argsJson);
+                    toolResults.Add(new AgentToolResult
+                    {
+                        ToolName = action,
+                        Message = execResult,
+                        Success = true
+                    });
+                }
+            }
+            else
+            {
+                toolResults.Add(new AgentToolResult
+                {
+                    ToolName = "diagnostic",
+                    Message = $"AI 判断为普通聊天 (action={action})，不执行任务操作。",
+                    Success = true
+                });
+            }
+        }
+        catch (JsonException)
+        {
+            toolResults.Add(new AgentToolResult
+            {
+                ToolName = "diagnostic",
+                Message = "AI 回复不是有效 JSON，任务操作未执行。",
+                Success = false
+            });
+        }
+
+        return new AgentResponse { Reply = cleanedReply, ToolResults = toolResults };
+    }
+
+    private static string Truncate(string text, int maxLen)
+    {
+        if (string.IsNullOrEmpty(text)) return "(空)";
+        return text.Length <= maxLen ? text : text[..maxLen] + "...";
+    }
+
+    private async Task<AgentResponse> CallAiWithToolsAsync(
+        UserSettings settings,
+        string systemPrompt,
+        string userInput,
+        IReadOnlyList<ChatHistoryItem> history,
+        IReadOnlyList<ToolDefinition> tools)
+    {
+        var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
+        // DeepSeek requires |tools suffix to enable function calling
+        if (baseUrl.Contains("deepseek", StringComparison.OrdinalIgnoreCase) && !model.Contains('|'))
+        {
+            model += "|tools";
+        }
+        var finalSystemPrompt = BuildSystemPrompt(settings, systemPrompt);
+
+        var messages = new List<object>
+        {
+            new { role = "system", content = finalSystemPrompt }
+        };
+
+        if (history is not null)
+        {
+            foreach (var item in history)
+            {
+                messages.Add(new { role = item.Role, content = item.Content });
+            }
+        }
+
+        messages.Add(new { role = "user", content = userInput });
+
+        var requestBody = new
+        {
+            model,
+            messages,
+            tools,
+            tool_choice = "auto",
+            max_tokens = 500,
+            temperature = 0.2
+        };
+
+        var json = JsonSerializer.Serialize(requestBody);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
+        request.Headers.Add("Authorization", $"Bearer {settings.ApiKey}");
+        request.Content = content;
+
+        var response = await httpClient.SendAsync(request);
+        var statusCode = (int)response.StatusCode;
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            var diagMsg = $"API 返回 {statusCode}，模型 {model} 可能不支持 Function Calling。";
+            if (IsTaskRelatedInput(userInput))
+                return new AgentResponse
+                {
+                    Reply = "抱歉，当前模型不支持任务操作。请在设置中切换到支持 Function Calling 的模型。",
+                    ToolResults = new[] { new AgentToolResult { ToolName = "diagnostic", Message = diagMsg, Success = false } }
+                };
+            // For non-task chat, fall through to regular chat silently
+            try
+            {
+                var fallbackReply = await CallAiWithHistoryAsync(settings, systemPrompt, userInput, history);
+                return new AgentResponse { Reply = fallbackReply, ToolResults = Array.Empty<AgentToolResult>() };
+            }
+            catch (Exception fex)
+            {
+                return new AgentResponse { Reply = $"API 错误 ({statusCode}): {fex.Message}", ToolResults = Array.Empty<AgentToolResult>() };
+            }
+        }
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(responseBody);
+        var choice = doc.RootElement.GetProperty("choices")[0];
+        var message = choice.GetProperty("message");
+
+        // Check if AI called a tool
+        if (message.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.GetArrayLength() > 0)
+        {
+            var toolResults = new List<AgentToolResult>();
+
+            // Add assistant message with tool_calls
+            messages.Add(new
+            {
+                role = "assistant",
+                content = (string?)null,
+                tool_calls = toolCalls
+            });
+
+            // Execute each tool call
+            foreach (var tc in toolCalls.EnumerateArray())
+            {
+                var callId = tc.GetProperty("id").GetString() ?? "";
+                var func = tc.GetProperty("function");
+                var funcName = func.GetProperty("name").GetString() ?? "";
+                var funcArgs = func.GetProperty("arguments").GetString() ?? "{}";
+
+                string execResult;
+                using (var scope = scopeFactory.CreateScope())
+                {
+                    var executor = scope.ServiceProvider.GetRequiredService<IAgentToolExecutor>();
+                    execResult = await executor.ExecuteToolAsync(funcName, funcArgs);
+                }
+
+                toolResults.Add(new AgentToolResult
+                {
+                    ToolName = funcName,
+                    Message = execResult,
+                    Success = true
+                });
+
+                // Add tool result message
+                messages.Add(new
+                {
+                    role = "tool",
+                    tool_call_id = callId,
+                    content = execResult
+                });
+            }
+
+            // Send back to AI for final response
+            var followUpBody = new
+            {
+                model,
+                messages,
+                max_tokens = 500,
+                temperature = 0.8
+            };
+
+            var followUpJson = JsonSerializer.Serialize(followUpBody);
+            var followUpContent = new StringContent(followUpJson, Encoding.UTF8, "application/json");
+
+            var followUpRequest = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
+            followUpRequest.Headers.Add("Authorization", $"Bearer {settings.ApiKey}");
+            followUpRequest.Content = followUpContent;
+
+            var followUpResponse = await httpClient.SendAsync(followUpRequest);
+            followUpResponse.EnsureSuccessStatusCode();
+
+            var followUpBody2 = await followUpResponse.Content.ReadAsStringAsync();
+            using var doc2 = JsonDocument.Parse(followUpBody2);
+            var finalContent = doc2.RootElement
+                .GetProperty("choices")[0]
+                .GetProperty("message")
+                .GetProperty("content")
+                .GetString();
+
+            return new AgentResponse
+            {
+                Reply = finalContent?.Trim() ?? "操作已完成。",
+                ToolResults = toolResults
+            };
+        }
+
+        // No tool call - AI chose not to call any function
+        var textContent = message.GetProperty("content").GetString();
+        var diagnostics = new List<AgentToolResult>();
+        diagnostics.Add(new AgentToolResult
+        {
+            ToolName = "diagnostic",
+            Message = $"模型={model} 状态码={statusCode} tool_calls=无。AI 未调用任何工具函数。",
+            Success = true
+        });
+        if (IsTaskRelatedInput(userInput))
+        {
+            diagnostics.Add(new AgentToolResult
+            {
+                ToolName = "system",
+                Message = "AI 未调用任务工具，操作未实际执行。请确认当前模型支持 Function Calling。",
+                Success = false
+            });
+        }
+        return new AgentResponse
+        {
+            Reply = textContent?.Trim() ?? "我收到了，但需要一点时间想一想。",
+            ToolResults = diagnostics
+        };
+    }
+
+    public async Task<IReadOnlyList<ExtractedMemory>> ExtractMemoriesAsync(string userMessage, string aiReply)
+    {
+        var settings = await settingsStore.LoadAsync();
+
+        if (!settings.EnableAi || string.IsNullOrWhiteSpace(settings.ApiKey))
+        {
+            return Array.Empty<ExtractedMemory>();
+        }
+
+        try
+        {
+            return await CallExtractionApiAsync(settings, userMessage, aiReply);
+        }
+        catch (Exception ex)
+        {
+            // Memory extraction fails silently — the main reply was already shown
+            System.Diagnostics.Debug.WriteLine($"Memory extraction failed: {ex.Message}");
+            return Array.Empty<ExtractedMemory>();
         }
     }
 
     private async Task<string> CallAiAsync(UserSettings settings, string systemPrompt, string userInput)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
-        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "gpt-3.5-turbo" : settings.AiModel;
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
         var finalSystemPrompt = BuildSystemPrompt(settings, systemPrompt);
 
         var requestBody = new
@@ -92,6 +532,107 @@ public class ChatService : IChatService
             },
             max_tokens = 500,
             temperature = 0.8
+        };
+
+        var json = JsonSerializer.Serialize(requestBody);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
+        request.Headers.Add("Authorization", $"Bearer {settings.ApiKey}");
+        request.Content = content;
+
+        var response = await httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(responseBody);
+        var message = doc.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString();
+
+        return message?.Trim() ?? "我收到了，但需要一点时间想一想。";
+    }
+
+    private async Task<string> CallAiWithHistoryAsync(UserSettings settings, string systemPrompt, string userInput, IReadOnlyList<ChatHistoryItem> history)
+    {
+        var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
+        var finalSystemPrompt = BuildSystemPrompt(settings, systemPrompt);
+
+        var messages = new List<object>
+        {
+            new { role = "system", content = finalSystemPrompt }
+        };
+
+        if (history is not null)
+        {
+            foreach (var item in history)
+            {
+                messages.Add(new { role = item.Role, content = item.Content });
+            }
+        }
+
+        messages.Add(new { role = "user", content = userInput });
+
+        var requestBody = new
+        {
+            model,
+            messages,
+            max_tokens = 500,
+            temperature = 0.8
+        };
+
+        var json = JsonSerializer.Serialize(requestBody);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
+        request.Headers.Add("Authorization", $"Bearer {settings.ApiKey}");
+        request.Content = content;
+
+        var response = await httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(responseBody);
+        var message = doc.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString();
+
+        return message?.Trim() ?? "我收到了，但需要一点时间想一想。";
+    }
+
+    private async Task<string> CallAiJsonModeAsync(UserSettings settings, string systemPrompt, string userInput, IReadOnlyList<ChatHistoryItem> history)
+    {
+        var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
+        var finalSystemPrompt = BuildSystemPrompt(settings, systemPrompt);
+
+        var messages = new List<object>
+        {
+            new { role = "system", content = finalSystemPrompt }
+        };
+
+        if (history is not null)
+        {
+            foreach (var item in history)
+            {
+                messages.Add(new { role = item.Role, content = item.Content });
+            }
+        }
+
+        messages.Add(new { role = "user", content = userInput });
+
+        var requestBody = new
+        {
+            model,
+            messages,
+            max_tokens = 500,
+            temperature = 0.3,
+            response_format = new { type = "json_object" }
         };
 
         var json = JsonSerializer.Serialize(requestBody);
@@ -173,5 +714,105 @@ public class ChatService : IChatService
 
         var random = new Random();
         return OfflineResponses[random.Next(OfflineResponses.Length)];
+    }
+
+    private static bool IsTaskRelatedInput(string input)
+    {
+        var keywords = new[] { "创建", "添加", "新建", "任务", "记一下", "帮我安排", "查看", "列出", "有哪些",
+                               "完成", "标记", "修改", "更新", "改成", "删除", "移除", "取消", "去掉",
+                               "create", "add", "task", "todo", "done", "delete", "remove" };
+        return keywords.Any(k => input.Contains(k, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string BuildMemoryAugmentedPrompt(IReadOnlyList<string> memories)
+    {
+        if (memories is null || memories.Count == 0)
+        {
+            return ChatSystemPrompt;
+        }
+
+        var sb = new StringBuilder(ChatSystemPrompt);
+        sb.AppendLine();
+        sb.AppendLine();
+        sb.AppendLine("## 关于用户的长期记忆");
+        sb.AppendLine("以下是关于用户的一些已知信息，请在回复中自然地参考这些信息，但不要刻意逐条罗列：");
+        foreach (var memory in memories)
+        {
+            sb.AppendLine($"- {memory}");
+        }
+
+        return sb.ToString();
+    }
+
+    private async Task<IReadOnlyList<ExtractedMemory>> CallExtractionApiAsync(UserSettings settings, string userMessage, string aiReply)
+    {
+        var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
+
+        var extractionPrompt =
+            "请分析以下对话，提取关于用户的值得长期记住的信息（如喜好、兴趣、习惯、个人信息、重要计划等）。" +
+            "以JSON数组格式返回，每个条目包含 content（记忆内容，用简洁的中文描述）和 category（分类：喜好/兴趣/习惯/个人/计划/其他）。" +
+            "如果对话中没有值得记录的新信息，返回空数组 []。" +
+            "注意：只返回有效的JSON数组，不要包含markdown代码块标记或任何其他文字。";
+
+        var requestBody = new
+        {
+            model,
+            messages = new[]
+            {
+                new { role = "system", content = extractionPrompt },
+                new { role = "user", content = $"用户消息：{userMessage}\n\nAI回复：{aiReply}" }
+            },
+            max_tokens = 300,
+            temperature = 0.3
+        };
+
+        var json = JsonSerializer.Serialize(requestBody);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
+        request.Headers.Add("Authorization", $"Bearer {settings.ApiKey}");
+        request.Content = content;
+
+        var response = await httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(responseBody);
+        var message = doc.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString();
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return Array.Empty<ExtractedMemory>();
+        }
+
+        var trimmed = message.Trim();
+        if (trimmed.StartsWith("```"))
+        {
+            var start = trimmed.IndexOf('[');
+            var end = trimmed.LastIndexOf(']');
+            if (start >= 0 && end > start)
+            {
+                trimmed = trimmed[start..(end + 1)];
+            }
+        }
+
+        try
+        {
+            var extracted = JsonSerializer.Deserialize<List<ExtractedMemory>>(trimmed, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            return extracted?.Where(m => !string.IsNullOrWhiteSpace(m.Content)).ToList()
+                   ?? (IReadOnlyList<ExtractedMemory>)Array.Empty<ExtractedMemory>();
+        }
+        catch
+        {
+            return Array.Empty<ExtractedMemory>();
+        }
     }
 }

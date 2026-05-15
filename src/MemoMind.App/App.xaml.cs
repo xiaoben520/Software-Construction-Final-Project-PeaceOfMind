@@ -42,6 +42,9 @@ public partial class App : Application
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<IFileWorkspaceService, FileWorkspaceService>();
         services.AddScoped<ICustomPlantService, CustomPlantService>();
+        services.AddScoped<IChatMessageService, ChatMessageService>();
+        services.AddScoped<IMemoryService, MemoryService>();
+        services.AddScoped<IAgentToolExecutor, AgentToolExecutor>();
         services.AddSingleton<IAppSettingsStore>(_ => new JsonAppSettingsStore(settingsFilePath));
         services.AddSingleton<IFileWorkspaceStateService>(_ => new FileWorkspaceStateService(fileWorkspaceStatePath));
         services.AddSingleton<IChatService, ChatService>();
