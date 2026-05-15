@@ -20,13 +20,26 @@ public partial class FileWorkspaceView : UserControl
         if (sender is not Border border) return;
         if (border.DataContext is not WorkspaceItemViewModel item) return;
 
-        if (item.IsFolder)
-        {
-            ViewModel?.ToggleExpandCommand.Execute(item);
-        }
-        else
+        if (!item.IsFolder)
         {
             ViewModel?.OpenWorkspaceItemCommand.Execute(item);
+        }
+        // Folders are handled by TreeView expand/collapse via IsExpanded binding + Expanded event
+    }
+
+    private void WorkspaceTreeItem_Selected(object sender, RoutedEventArgs e)
+    {
+        if (sender is TreeViewItem tvi)
+        {
+            tvi.IsSelected = false;
+        }
+    }
+
+    private void WorkspaceTreeItem_Expanded(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource is TreeViewItem tvi && tvi.DataContext is WorkspaceItemViewModel item)
+        {
+            ViewModel?.EnsureWorkspaceChildrenLoaded(item);
         }
     }
 
@@ -34,6 +47,22 @@ public partial class FileWorkspaceView : UserControl
     {
         if (ViewModel is null) return;
         ViewModel.SelectedFileManagerItem = e.NewValue as FileManagerItem;
+    }
+
+    private void FileManagerTreeItem_Expanded(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource is TreeViewItem tvi && tvi.DataContext is FileManagerItem item)
+        {
+            item.IsExpanded = true;
+        }
+    }
+
+    private void FileManagerTreeItem_Collapsed(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource is TreeViewItem tvi && tvi.DataContext is FileManagerItem item)
+        {
+            item.IsExpanded = false;
+        }
     }
 
     private void RecentFile_Open_Click(object sender, RoutedEventArgs e)

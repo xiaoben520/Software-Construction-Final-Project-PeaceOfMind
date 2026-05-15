@@ -13,19 +13,19 @@ primary
 lastDtbSucceeded
 
 [properties]
-AssemblyName=MemoMind.App
+AssemblyName=MemoMind.Tests
 CommandLineArgsForDesignTimeEvaluation=-langversion:12.0 -define:TRACE
 CompilerGeneratedFilesOutputPath=
 MaxSupportedLangVersion=12.0
 ProjectAssetsFile=<PATH>obj/project.assets.json
-RootNamespace=MemoMind.App
+RootNamespace=MemoMind.Tests
 RunAnalyzers=
 RunAnalyzersDuringLiveAnalysis=
 SolutionPath=<PATH>../../MemoMind.sln
 TargetFrameworkIdentifier=.NETCoreApp
-TargetPath=<PATH>bin/Debug/net8.0-windows/MemoMind.App.dll
-TargetRefPath=<PATH>obj/Debug/net8.0-windows/ref/MemoMind.App.dll
-TemporaryDependencyNodeTargetIdentifier=net8.0-windows
+TargetPath=<PATH>bin/Debug/net8.0/MemoMind.Tests.dll
+TargetRefPath=<PATH>obj/Debug/net8.0/ref/MemoMind.Tests.dll
+TemporaryDependencyNodeTargetIdentifier=net8.0
 
 [commandLineArguments]
 /noconfig
@@ -36,16 +36,16 @@ TemporaryDependencyNodeTargetIdentifier=net8.0-windows
 /nostdlib+
 /errorreport:prompt
 /warn:8
-/define:TRACE;DEBUG;NET;NET8_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS7_0_OR_GREATER
+/define:TRACE;DEBUG;NET;NET8_0;NETCOREAPP;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NETCOREAPP1_0_OR_GREATER;NETCOREAPP1_1_OR_GREATER;NETCOREAPP2_0_OR_GREATER;NETCOREAPP2_1_OR_GREATER;NETCOREAPP2_2_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER
 /highentropyva+
 /nullable:enable
 /debug+
 /debug:portable
 /filealign:512
 /optimize-
-/out:obj\Debug\net8.0-windows\MemoMind.App.dll
-/refout:obj\Debug\net8.0-windows\refint\MemoMind.App.dll
-/target:winexe
+/out:obj\Debug\net8.0\MemoMind.Tests.dll
+/refout:obj\Debug\net8.0\refint\MemoMind.Tests.dll
+/target:exe
 /warnaserror-
 /utf8output
 /deterministic+
@@ -53,76 +53,18 @@ TemporaryDependencyNodeTargetIdentifier=net8.0-windows
 /warnaserror+:NU1605,SYSLIB0011
 
 [sourceFiles]
-App.xaml.cs
-Commands/RelayCommand.cs
-Converters/
- BoolToCollapseTextConverter.cs
- BoolToVisibilityConverter.cs
- HalfBoardWidthConverter.cs
- HalfWidthConverter.cs
- ProgressToOverlayConverter.cs
-MainWindow.xaml.cs
-Models/
- AiProviderPreset.cs
- AppPageCatalog.cs
- AppPageDefinition.cs
- CalendarDay.cs
- ChatMessage.cs
- CyberPlantPresets.cs
- FileManagerItem.cs
- PlantListItem.cs
- PlantProfileOverride.cs
- RecentFileEntry.cs
- UserSettings.cs
- WorkspaceGroup.cs
- WorkspaceGroupViewModel.cs
- WorkspaceItemViewModel.cs
-obj/Debug/net8.0-windows/
+<NUGET>/microsoft.net.test.sdk/17.11.1/build/netcoreapp3.1/Microsoft.NET.Test.Sdk.Program.cs
+obj/Debug/net8.0/
  .NETCoreApp,Version=v8.0.AssemblyAttributes.cs
- App.g.cs
- GeneratedInternalTypeHelper.g.cs
- MainWindow.g.cs
- MemoMind.App.AssemblyInfo.cs
- MemoMind.App.GlobalUsings.g.cs
- MemoMind.App_Content.g.cs
- Views/
-  ChatView.g.cs
-  CyberPlantView.g.cs
-  FileWorkspaceView.g.cs
-  HomeView.g.cs
-  SettingsView.g.cs
-  TaskBoardView.g.cs
-Services/
- ChatService.cs
- FileWorkspaceStateService.cs
- IAppSettingsStore.cs
- JsonAppSettingsStore.cs
-ViewModels/
- ChatViewModel.cs
- CyberPlantViewModel.cs
- FileWorkspaceViewModel.cs
- HomeViewModel.cs
- IPageLifecycleAware.cs
- ISettingsAwareViewModel.cs
- MainViewModel.cs
- NavigationPageItemViewModel.cs
- PageVisibilityOptionViewModel.cs
- SettingsViewModel.cs
- TaskBoardViewModel.cs
- ViewModelBase.cs
-Views/
- ChatView.xaml.cs
- CyberPlantView.xaml.cs
- FileWorkspaceView.xaml.cs
- HomeView.xaml.cs
- SettingsView.xaml.cs
- TaskBoardView.xaml.cs
+ MemoMind.Tests.AssemblyInfo.cs
+ MemoMind.Tests.GlobalUsings.g.cs
 
 [metadataReferences]
-../
+../../src/
  MemoMind.Core/obj/Debug/net8.0/ref/MemoMind.Core.dll
  MemoMind.Infrastructure/obj/Debug/net8.0/ref/MemoMind.Infrastructure.dll
 <NUGET>/
+ microsoft.codecoverage/17.11.1/lib/netcoreapp3.1/Microsoft.VisualStudio.CodeCoverage.Shim.dll
  microsoft.data.sqlite.core/8.0.8/lib/net8.0/Microsoft.Data.Sqlite.dll
  microsoft.entityframeworkcore.abstractions/8.0.8/lib/net8.0/Microsoft.EntityFrameworkCore.Abstractions.dll
  microsoft.entityframeworkcore.relational/8.0.8/lib/net8.0/Microsoft.EntityFrameworkCore.Relational.dll
@@ -301,46 +243,24 @@ Views/
   System.Xml.XmlSerializer.dll
   System.Xml.XPath.dll
   System.Xml.XPath.XDocument.dll
- microsoft.windowsdesktop.app.ref/8.0.24/ref/net8.0/
-  Accessibility.dll
-  Microsoft.Win32.Registry.AccessControl.dll
-  Microsoft.Win32.SystemEvents.dll
-  PresentationCore.dll
-  PresentationFramework.Aero.dll
-  PresentationFramework.Aero2.dll
-  PresentationFramework.AeroLite.dll
-  PresentationFramework.Classic.dll
-  PresentationFramework.dll
-  PresentationFramework.Luna.dll
-  PresentationFramework.Royale.dll
-  PresentationUI.dll
-  ReachFramework.dll
-  System.CodeDom.dll
-  System.Configuration.ConfigurationManager.dll
-  System.Diagnostics.EventLog.dll
-  System.Diagnostics.PerformanceCounter.dll
-  System.DirectoryServices.dll
-  System.IO.Packaging.dll
-  System.Printing.dll
-  System.Resources.Extensions.dll
-  System.Security.Cryptography.Pkcs.dll
-  System.Security.Cryptography.ProtectedData.dll
-  System.Security.Cryptography.Xml.dll
-  System.Security.Permissions.dll
-  System.Threading.AccessControl.dll
-  System.Windows.Controls.Ribbon.dll
-  System.Windows.Extensions.dll
-  System.Windows.Input.Manipulations.dll
-  System.Windows.Presentation.dll
-  System.Xaml.dll
-  UIAutomationClient.dll
-  UIAutomationClientSideProviders.dll
-  UIAutomationProvider.dll
-  UIAutomationTypes.dll
   WindowsBase.dll
+ microsoft.testplatform.testhost/17.11.1/lib/netcoreapp3.1/
+  Microsoft.TestPlatform.CommunicationUtilities.dll
+  Microsoft.TestPlatform.CoreUtilities.dll
+  Microsoft.TestPlatform.CrossPlatEngine.dll
+  Microsoft.TestPlatform.PlatformAbstractions.dll
+  Microsoft.TestPlatform.Utilities.dll
+  Microsoft.VisualStudio.TestPlatform.Common.dll
+  Microsoft.VisualStudio.TestPlatform.ObjectModel.dll
+  testhost.dll
+ newtonsoft.json/13.0.1/lib/netstandard2.0/Newtonsoft.Json.dll
  sqlitepclraw.bundle_e_sqlite3/2.1.6/lib/netstandard2.0/SQLitePCLRaw.batteries_v2.dll
  sqlitepclraw.core/2.1.6/lib/netstandard2.0/SQLitePCLRaw.core.dll
- sqlitepclraw.provider.e_sqlite3/2.1.6/lib/net6.0-windows7.0/SQLitePCLRaw.provider.e_sqlite3.dll
+ sqlitepclraw.provider.e_sqlite3/2.1.6/lib/net6.0/SQLitePCLRaw.provider.e_sqlite3.dll
+ xunit.abstractions/2.0.3/lib/netstandard2.0/xunit.abstractions.dll
+ xunit.assert/2.9.0/lib/net6.0/xunit.assert.dll
+ xunit.extensibility.core/2.9.0/lib/netstandard1.1/xunit.core.dll
+ xunit.extensibility.execution/2.9.0/lib/netstandard1.1/xunit.execution.dotnet.dll
 
 [analyzerReferences]
 <DOTNET>/sdk/10.0.103/Sdks/Microsoft.NET.Sdk/analyzers/
@@ -357,7 +277,10 @@ Views/
   Microsoft.Interop.SourceGeneration.dll
   System.Text.Json.SourceGeneration.dll
   System.Text.RegularExpressions.Generator.dll
+ xunit.analyzers/1.15.0/analyzers/dotnet/cs/
+  xunit.analyzers.dll
+  xunit.analyzers.fixes.dll
 
 [analyzerConfigFiles]
 <DOTNET>/sdk/10.0.103/Sdks/Microsoft.NET.Sdk/analyzers/build/config/analysislevel_8_default.globalconfig
-obj/Debug/net8.0-windows/MemoMind.App.GeneratedMSBuildEditorConfig.editorconfig
+obj/Debug/net8.0/MemoMind.Tests.GeneratedMSBuildEditorConfig.editorconfig

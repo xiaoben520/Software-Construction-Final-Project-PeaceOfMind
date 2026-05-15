@@ -26,6 +26,11 @@ public class SettingsViewModel : ViewModelBase
     private string statusMessage = "设置将保存到本地配置文件。";
     private bool suppressLayoutPreview;
     private int selectedProviderIndex;
+    private bool showRecentFiles = true;
+    private bool showWorkspaceGroups = true;
+    private bool showFileManager = true;
+    private string fileManagerRootPath = string.Empty;
+    private int recentFilesLimit = 50;
 
     // Sound & popup settings
     private bool pomodoroSoundEnabled = true;
@@ -232,6 +237,11 @@ public class SettingsViewModel : ViewModelBase
         set { customSoundPath = value ?? string.Empty; OnPropertyChanged(); }
     }
 
+    public int RecentFilesLimit
+    {
+        get => recentFilesLimit;
+        set { recentFilesLimit = Math.Clamp(value, 5, 200); OnPropertyChanged(); }
+    }
     public bool IsCustomSoundPathVisible => useCustomSound;
 
     public ICommand BrowseSoundCommand { get; }
@@ -289,6 +299,11 @@ public class SettingsViewModel : ViewModelBase
         EnableReminder = settings.EnableReminder;
         ReminderHour = settings.ReminderHour;
         Theme = string.IsNullOrWhiteSpace(settings.Theme) ? "System" : settings.Theme;
+        ShowRecentFiles = settings.ShowRecentFiles;
+        ShowWorkspaceGroups = settings.ShowWorkspaceGroups;
+        ShowFileManager = settings.ShowFileManager;
+        FileManagerRootPath = settings.FileManagerRootPath;
+        RecentFilesLimit = settings.RecentFilesLimit > 0 ? settings.RecentFilesLimit : 50;
 
         // Sound & popup settings
         PomodoroSoundEnabled = settings.PomodoroSoundEnabled;
@@ -344,6 +359,15 @@ public class SettingsViewModel : ViewModelBase
 
     private async Task SaveAsync()
     {
+        // Merge with current on-disk settings to preserve values updated by other VMs (e.g. FileWorkspace)
+        var currentSettings = await settingsStore.LoadAsync();
+        var resolvedRootPath = !string.IsNullOrWhiteSpace(FileManagerRootPath)
+            ? FileManagerRootPath
+            : currentSettings.FileManagerRootPath;
+        var resolvedRootPaths = currentSettings.FileManagerRootPaths;
+        var resolvedExpandedPaths = currentSettings.FileManagerExpandedPaths;
+        var resolvedHiddenPaths = currentSettings.FileManagerHiddenPaths;
+
         var settings = new UserSettings
         {
             ApiKey = ApiKey,
@@ -354,6 +378,14 @@ public class SettingsViewModel : ViewModelBase
             EnableReminder = EnableReminder,
             ReminderHour = ReminderHour,
             Theme = Theme,
+            ShowRecentFiles = ShowRecentFiles,
+            ShowWorkspaceGroups = ShowWorkspaceGroups,
+            ShowFileManager = ShowFileManager,
+            RecentFilesLimit = RecentFilesLimit,
+            FileManagerRootPath = resolvedRootPath,
+            FileManagerRootPaths = resolvedRootPaths,
+            FileManagerExpandedPaths = resolvedExpandedPaths,
+            FileManagerHiddenPaths = resolvedHiddenPaths,
             PomodoroSoundEnabled = PomodoroSoundEnabled,
             AlarmSoundEnabled = AlarmSoundEnabled,
             CountdownSoundEnabled = CountdownSoundEnabled,
