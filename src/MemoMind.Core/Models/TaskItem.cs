@@ -32,19 +32,27 @@ public class TaskItem : INotifyPropertyChanged
     public string SourceType { get; set; } = "Manual";
 
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public int EstimatedHours { get; set; } = 1;
-
+    private int estimatedHours = 1;
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public int EstimatedMinutes { get; set; } = 0;
-
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    private bool isTimePickerVisible;
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public bool IsTimePickerVisible
+    public int EstimatedHours
     {
-        get => isTimePickerVisible;
-        set { isTimePickerVisible = value; OnPropertyChanged(); }
+        get => estimatedHours;
+        set { estimatedHours = value; OnPropertyChanged(); OnPropertyChanged(nameof(EstimatedTimeDisplay)); }
     }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    private int estimatedMinutes;
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int EstimatedMinutes
+    {
+        get => estimatedMinutes;
+        set { estimatedMinutes = value; OnPropertyChanged(); OnPropertyChanged(nameof(EstimatedTimeDisplay)); }
+    }
+
+    [NotMapped]
+    public string EstimatedTimeDisplay => EstimatedHours > 0 || EstimatedMinutes > 0
+        ? $"预计 {EstimatedHours}h{EstimatedMinutes:D2}m"
+        : string.Empty;
 
     [NotMapped]
     public DateTime CountdownEndTime { get; set; }
@@ -66,6 +74,27 @@ public class TaskItem : INotifyPropertyChanged
         get => countdownDisplay;
         set { countdownDisplay = value; OnPropertyChanged(); }
     }
+
+    [NotMapped]
+    private double countdownProgress;
+    [NotMapped]
+    public double CountdownProgress
+    {
+        get => countdownProgress;
+        set { countdownProgress = value; OnPropertyChanged(); }
+    }
+
+    [NotMapped]
+    private string countdownStatusText = string.Empty;
+    [NotMapped]
+    public string CountdownStatusText
+    {
+        get => countdownStatusText;
+        set { countdownStatusText = value; OnPropertyChanged(); }
+    }
+
+    [NotMapped]
+    public int CountdownPhaseSeconds { get; set; }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
