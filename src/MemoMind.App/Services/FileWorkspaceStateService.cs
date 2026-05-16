@@ -8,7 +8,7 @@ public interface IFileWorkspaceStateService
 {
     Task<List<RecentFileEntry>> LoadRecentFilesAsync();
     Task SaveRecentFilesAsync(List<RecentFileEntry> entries);
-    Task AddRecentFileAsync(string path);
+    Task AddRecentFileAsync(string path, int maxCount = 50);
     Task<List<WorkspaceGroup>> LoadWorkspaceGroupsAsync();
     Task SaveWorkspaceGroupsAsync(List<WorkspaceGroup> groups);
 }
@@ -17,8 +17,6 @@ public class FileWorkspaceStateService : IFileWorkspaceStateService
 {
     private readonly string stateFilePath;
     private readonly JsonSerializerOptions serializerOptions = new() { WriteIndented = true };
-
-    private const int MaxRecentFiles = 50;
 
     public FileWorkspaceStateService(string stateFilePath)
     {
@@ -39,7 +37,7 @@ public class FileWorkspaceStateService : IFileWorkspaceStateService
         return Task.CompletedTask;
     }
 
-    public async Task AddRecentFileAsync(string path)
+    public async Task AddRecentFileAsync(string path, int maxCount = 50)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -71,7 +69,7 @@ public class FileWorkspaceStateService : IFileWorkspaceStateService
             LastOpenedAt = DateTime.Now
         });
 
-        while (files.Count > MaxRecentFiles)
+        while (files.Count > maxCount)
         {
             files.RemoveAt(files.Count - 1);
         }

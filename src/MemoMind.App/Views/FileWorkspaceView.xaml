@@ -23,9 +23,16 @@
                             <TextBlock Text="自动记录最近打开的文件和文件夹，方便快速重新打开。"
                                        Margin="0,6,0,0" Foreground="{DynamicResource SecondaryTextBrush}" />
                         </StackPanel>
-                        <Button Grid.Column="1" Content="清除全部" VerticalAlignment="Center"
-                                Style="{StaticResource FileWorkspaceActionButtonStyle}"
-                                Command="{Binding ClearRecentFilesCommand}" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="{Binding IsRecentFilesExpanded, Converter={StaticResource BoolToCollapseTextConverter}}"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource FileWorkspaceActionButtonStyle}"
+                                    Command="{Binding ToggleRecentFilesCommand}"
+                                    Margin="0,0,8,0" />
+                            <Button Content="清除全部" VerticalAlignment="Center"
+                                    Style="{StaticResource FileWorkspaceActionButtonStyle}"
+                                    Command="{Binding ClearRecentFilesCommand}" />
+                        </StackPanel>
                     </Grid>
 
                     <TextBlock Text="{Binding RecentStatus}" Margin="0,8,0,8"
@@ -33,6 +40,7 @@
 
                     <ListView ItemsSource="{Binding RecentFiles}" SelectedItem="{Binding SelectedRecentFile}"
                               BorderThickness="0" MaxHeight="320"
+                              Visibility="{Binding IsRecentFilesExpanded, Converter={StaticResource BoolToVisibilityConverter}}"
                               MouseDoubleClick="RecentFiles_MouseDoubleClick">
                         <ListView.ItemTemplate>
                             <DataTemplate DataType="{x:Type models:RecentFileEntry}">
@@ -113,6 +121,16 @@
                                                                VerticalAlignment="Center" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                    <Button Content="展开全部" Style="{StaticResource FileWorkspaceActionButtonStyle}"
+                                                            Padding="8,6" FontSize="11"
+                                                            Margin="0,0,4,0"
+                                                            Command="{Binding DataContext.ExpandAllCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}" />
+                                                    <Button Content="收起全部" Style="{StaticResource FileWorkspaceActionButtonStyle}"
+                                                            Padding="8,6" FontSize="11"
+                                                            Margin="0,0,6,0"
+                                                            Command="{Binding DataContext.CollapseAllCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}" />
                                                     <Button Content="＋ 添加" Style="{StaticResource FileWorkspaceActionButtonStyle}"
                                                             Margin="0,0,6,0"
                                                             Command="{Binding DataContext.AddItemToGroupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -124,55 +142,39 @@
                                             </Grid>
                                         </Border>
 
-                                        <!-- Root Items -->
-                                        <ItemsControl ItemsSource="{Binding RootItems}" Margin="8,6,8,6">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate DataType="{x:Type models:WorkspaceItemViewModel}">
-                                                    <StackPanel>
-                                                        <Border Style="{StaticResource FileWorkspaceItemStyle}"
-                                                                MouseLeftButtonDown="WorkspaceItem_Click">
-                                                            <Grid>
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="Auto" />
-                                                                    <ColumnDefinition Width="*" />
-                                                                    <ColumnDefinition Width="Auto" />
-                                                                </Grid.ColumnDefinitions>
-                                                                <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="16"
-                                                                           VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                                <TextBlock Grid.Column="1" Text="{Binding DisplayName}"
-                                                                           VerticalAlignment="Center" FontSize="13" />
-                                                                <Button Grid.Column="2" Content="删除"
-                                                                        Style="{StaticResource FileWorkspaceDangerButtonStyle}"
-                                                                        Padding="6,3" FontSize="10"
-                                                                        Command="{Binding DataContext.RemoveWorkspaceItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                        CommandParameter="{Binding}" />
-                                                            </Grid>
-                                                        </Border>
+                                        <!-- Root Items (TreeView for multi-level expand/collapse) -->
+                                        <TreeView ItemsSource="{Binding RootItems}" Margin="4,4,4,4"
+                                                  TreeViewItem.Expanded="WorkspaceTreeItem_Expanded"
+                                                  BorderThickness="0" Background="Transparent">
+                                            <TreeView.ItemContainerStyle>
+                                                <Style TargetType="TreeViewItem">
+                                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                                                    <Setter Property="Focusable" Value="False" />
+                                                    <EventSetter Event="Selected" Handler="WorkspaceTreeItem_Selected" />
+                                                </Style>
+                                            </TreeView.ItemContainerStyle>
+                                            <TreeView.ItemTemplate>
+                                                <HierarchicalDataTemplate DataType="{x:Type models:WorkspaceItemViewModel}"
+                                                                          ItemsSource="{Binding Children}">
+                                                    <Border Style="{StaticResource FileWorkspaceItemStyle}"
+                                                            MouseLeftButtonDown="WorkspaceItem_Click"
+                                                            Margin="2">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="14"
+                                                                       VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding DisplayName}"
+                                                                       VerticalAlignment="Center" FontSize="13" />
+                                                        </Grid>
+                                                    </Border>
+                                                </HierarchicalDataTemplate>
+                                            </TreeView.ItemTemplate>
+                                        </TreeView>
 
-                                                        <!-- Children (shown when expanded) -->
-                                                        <ItemsControl ItemsSource="{Binding Children}"
-                                                                      Margin="24,0,0,0"
-                                                                      Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate DataType="{x:Type models:WorkspaceItemViewModel}">
-                                                                    <Border Style="{StaticResource FileWorkspaceItemStyle}"
-                                                                            MouseLeftButtonDown="WorkspaceItem_Click">
-                                                                        <StackPanel Orientation="Horizontal">
-                                                                            <TextBlock Text="{Binding Icon}" FontSize="14"
-                                                                                       VerticalAlignment="Center" Margin="0,0,6,0" />
-                                                                            <TextBlock Text="{Binding DisplayName}"
-                                                                                       VerticalAlignment="Center" FontSize="12" />
-                                                                        </StackPanel>
-                                                                    </Border>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-
-                                        <TextBlock Text="点击文件夹可展开/折叠子目录" Margin="10,4,10,8"
+                                        <TextBlock Text="点击文件夹可展开/折叠，使用「展开全部/收起全部」一键操作" Margin="10,4,10,8"
                                                    Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" />
                                     </StackPanel>
                                 </Border>
@@ -194,24 +196,40 @@
                         <StackPanel>
                             <TextBlock Text="小文件管理器" FontSize="20" FontWeight="Bold"
                                        Foreground="{DynamicResource PrimaryTextBrush}" />
-                            <TextBlock Text="简化的文件浏览与管理，支持打开、新建、重命名和删除操作。"
+                            <TextBlock Text="管理多个目录，支持打开、新建、重命名、移除显示和删除操作。"
                                        Margin="0,6,0,0" Foreground="{DynamicResource SecondaryTextBrush}" />
                         </StackPanel>
-                        <Button Grid.Column="1" Content="选择目录" VerticalAlignment="Center"
+                        <Button Grid.Column="1" Content="添加目录" VerticalAlignment="Center"
                                 Style="{StaticResource FileWorkspaceActionButtonStyle}" Padding="14,8"
-                                Command="{Binding BrowseRootPathCommand}" />
+                                Command="{Binding AddRootPathCommand}" />
                     </Grid>
 
-                    <Grid Margin="0,4,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="根目录：" Margin="0,0,8,0" />
-                        <TextBlock Grid.Column="1" Text="{Binding FileManagerRootPath}" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
-                    </Grid>
+                    <!-- Root directories list -->
+                    <ItemsControl ItemsSource="{Binding FileManagerRootPaths}" Margin="0,8,0,4">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource ListItemBrush}" CornerRadius="6"
+                                        Padding="8,6" Margin="0,0,0,4">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="" FontSize="14"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+                                        <Button Grid.Column="2" Content="移除" Padding="6,3" FontSize="10"
+                                                Style="{StaticResource FileWorkspaceDangerButtonStyle}"
+                                                Command="{Binding DataContext.RemoveRootPathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
 
                     <TextBlock Text="{Binding FileManagerStatus}" Margin="0,8,0,8"
                                Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
@@ -224,14 +242,23 @@
 
                         <!-- Left: TreeView -->
                         <Border Grid.Column="0" Background="{DynamicResource ListItemBrush}" CornerRadius="10"
-                                Padding="8" MinHeight="300" MaxHeight="500">
+                                Padding="8" MinHeight="300">
                             <TreeView ItemsSource="{Binding FileManagerTree}"
                                       SelectedItemChanged="FileManagerTree_SelectedItemChanged"
+                                      TreeViewItem.Expanded="FileManagerTreeItem_Expanded"
+                                      TreeViewItem.Collapsed="FileManagerTreeItem_Collapsed"
                                       BorderThickness="0" Background="Transparent">
+                                <TreeView.ItemContainerStyle>
+                                    <Style TargetType="TreeViewItem">
+                                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                                    </Style>
+                                </TreeView.ItemContainerStyle>
                                 <TreeView.ItemTemplate>
                                     <HierarchicalDataTemplate DataType="{x:Type models:FileManagerItem}"
                                                               ItemsSource="{Binding Children}">
                                         <StackPanel Orientation="Horizontal" Margin="2">
+                                            <CheckBox IsChecked="{Binding IsChecked}"
+                                                      VerticalAlignment="Center" Margin="0,0,6,0" />
                                             <TextBlock Text="{Binding Icon}" FontSize="14" VerticalAlignment="Center"
                                                        Margin="0,0,6,0" />
                                             <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"
@@ -244,7 +271,7 @@
 
                         <!-- Right: Operations Panel -->
                         <Border Grid.Column="1" Background="{DynamicResource ListItemBrush}" CornerRadius="10"
-                                Padding="16" Margin="12,0,0,0" MinHeight="300" MaxHeight="500">
+                                Padding="16" Margin="12,0,0,0" MinHeight="300">
                             <StackPanel VerticalAlignment="Top">
                                 <TextBlock Text="操作面板" FontSize="16" FontWeight="SemiBold"
                                            Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,14" />
@@ -253,9 +280,13 @@
                                 <TextBlock Text="{Binding SelectedFileManagerItem.DisplayName, TargetNullValue='（未选择）'}"
                                            FontWeight="SemiBold" Margin="0,2,0,14" TextTrimming="CharacterEllipsis" />
 
-                                <Button Content="打开" Margin="0,0,0,8" Padding="12,8"
+                                <Button Content="打开" Margin="0,0,0,6" Padding="12,8"
                                         Style="{StaticResource FileWorkspaceActionButtonStyle}"
                                         Command="{Binding OpenFileManagerItemCommand}" />
+
+                                <Button Content="移除显示" Margin="0,0,0,6" Padding="12,8"
+                                        Style="{StaticResource FileWorkspaceActionButtonStyle}"
+                                        Command="{Binding HideSelectedItemCommand}" />
 
                                 <Border Height="1" Background="{DynamicResource SecondaryTextBrush}"
                                         Opacity="0.15" Margin="0,8" />
@@ -278,6 +309,32 @@
                                 <Button Content="删除" Margin="0,10,0,0" Padding="12,8"
                                         Style="{StaticResource FileWorkspaceDangerButtonStyle}"
                                         Command="{Binding DeleteFileManagerItemCommand}" />
+
+                                <Border Height="1" Background="{DynamicResource SecondaryTextBrush}"
+                                        Opacity="0.15" Margin="0,14,0,8" />
+
+                                <TextBlock Text="批量操作" FontWeight="SemiBold" Margin="0,0,0,8"
+                                           Foreground="{DynamicResource PrimaryTextBrush}" FontSize="13" />
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="批量打开" Padding="8,8"
+                                            Style="{StaticResource FileWorkspaceActionButtonStyle}"
+                                            Command="{Binding OpenSelectedItemsCommand}"
+                                            Margin="0,0,4,0" />
+                                    <Button Grid.Column="1" Content="批量移除显示" Padding="8,8"
+                                            Style="{StaticResource FileWorkspaceActionButtonStyle}"
+                                            Command="{Binding HideSelectedItemsCommand}"
+                                            Margin="4,0,0,0" />
+                                </Grid>
+                                <Button Content="批量删除（永久）" Margin="0,0,0,4" Padding="8,8"
+                                        Style="{StaticResource FileWorkspaceDangerButtonStyle}"
+                                        Command="{Binding DeleteSelectedItemsCommand}" />
+                                <Button Content="显示全部隐藏项目" Margin="0,0,0,8" Padding="8,8"
+                                        Style="{StaticResource FileWorkspaceActionButtonStyle}"
+                                        Command="{Binding ShowAllCommand}" />
 
                                 <Border Height="1" Background="{DynamicResource SecondaryTextBrush}"
                                         Opacity="0.15" Margin="0,14,0,8" />

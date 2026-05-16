@@ -54,18 +54,25 @@ TemporaryDependencyNodeTargetIdentifier=net8.0
 
 [sourceFiles]
 Interfaces/
+ IAgentToolExecutor.cs
+ IChatMessageService.cs
  IChatService.cs
  ICustomPlantService.cs
  IFileWorkspaceService.cs
+ IMemoryService.cs
  ITaskService.cs
 Models/
  CalendarEvent.cs
+ ChatHistoryItem.cs
+ ChatMessageRecord.cs
  CustomPlantProfile.cs
  CyberPlant.cs
  EmotionLog.cs
  FileWorkspace.cs
+ MemoryItem.cs
  PomodoroSession.cs
  TaskItem.cs
+ ToolDefinition.cs
 obj/Debug/net8.0/
  .NETCoreApp,Version=v8.0.AssemblyAttributes.cs
  MemoMind.Core.AssemblyInfo.cs

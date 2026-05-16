@@ -14,21 +14,18 @@
             <DockPanel>
                 <TextBlock Text="AI 聊天" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" DockPanel.Dock="Top" />
                 <TextBlock Text="{Binding AiStatus}" Margin="0,4,0,10" Foreground="{DynamicResource SecondaryTextBrush}" DockPanel.Dock="Top" FontSize="12" />
-                <ListBox ItemsSource="{Binding Messages}" BorderThickness="0" Background="Transparent" Margin="0,8,0,0"
+                <ListBox x:Name="ChatListBox" ItemsSource="{Binding Messages}" BorderThickness="0" Background="Transparent" Margin="0,8,0,0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                
-                                <Border Grid.Column="0" Padding="12,8,12,8" 
-                                        Background="{DynamicResource ListItemBrush}" 
-                                        CornerRadius="10,10,10,2"
-                                        Width="Auto" MaxWidth="280"
+                                <!-- AI Message - Left -->
+                                <Border HorizontalAlignment="Left"
+                                        Padding="12,8"
+                                        Background="{DynamicResource ListItemBrush}"
+                                        CornerRadius="4,14,14,14"
+                                        MaxWidth="320"
                                         Visibility="{Binding IsUserMessage, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}">
                                     <StackPanel>
                                         <DockPanel Margin="0,0,0,4">
@@ -39,11 +36,13 @@
                                         <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="14" />
                                     </StackPanel>
                                 </Border>
-                                
-                                <Border Grid.Column="1" Padding="12,8,12,8" 
-                                        Background="#4A90D9" 
-                                        CornerRadius="10,10,2,10"
-                                        Width="Auto" MaxWidth="280"
+
+                                <!-- User Message - Right -->
+                                <Border HorizontalAlignment="Right"
+                                        Padding="12,8"
+                                        Background="#4A90D9"
+                                        CornerRadius="14,4,14,14"
+                                        MaxWidth="320"
                                         Visibility="{Binding IsUserMessage, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <StackPanel>
                                         <DockPanel Margin="0,0,0,4">

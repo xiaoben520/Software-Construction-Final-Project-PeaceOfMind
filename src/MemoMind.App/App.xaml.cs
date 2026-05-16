@@ -42,6 +42,9 @@ public partial class App : Application
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<IFileWorkspaceService, FileWorkspaceService>();
         services.AddScoped<ICustomPlantService, CustomPlantService>();
+        services.AddScoped<IChatMessageService, ChatMessageService>();
+        services.AddScoped<IMemoryService, MemoryService>();
+        services.AddScoped<IAgentToolExecutor, AgentToolExecutor>();
         services.AddSingleton<IAppSettingsStore>(_ => new JsonAppSettingsStore(settingsFilePath));
         services.AddSingleton<IFileWorkspaceStateService>(_ => new FileWorkspaceStateService(fileWorkspaceStatePath));
         services.AddSingleton<IChatService, ChatService>();
@@ -52,6 +55,7 @@ public partial class App : Application
         services.AddTransient<FileWorkspaceViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<CyberPlantViewModel>();
+        services.AddTransient<PomodoroAlarmViewModel>();
         Services = services.BuildServiceProvider();
 
         var settingsStore = Services.GetRequiredService<IAppSettingsStore>();
