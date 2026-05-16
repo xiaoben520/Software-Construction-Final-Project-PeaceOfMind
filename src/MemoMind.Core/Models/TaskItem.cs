@@ -26,6 +26,7 @@ public class TaskItem : INotifyPropertyChanged
         set { status = value; OnPropertyChanged(); }
     }
 
+    public DateTime? StartDate { get; set; }
     public DateTime? DueDate { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? CompletedAt { get; set; }

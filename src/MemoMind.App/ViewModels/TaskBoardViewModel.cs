@@ -15,7 +15,8 @@ public class TaskBoardViewModel : ViewModelBase
     private readonly DispatcherTimer countdownTimer;
     private string newTaskTitle = string.Empty;
     private string newTaskDescription = string.Empty;
-    private DateTime? newTaskDueDate = DateTime.Today;
+    private DateTime? newTaskStartDate;
+    private DateTime? newTaskDueDate;
     private bool newTaskIsUrgent;
     private string statusMessage = "已连接本地数据库，任务会自动保存。";
     private string currentDate = DateTime.Now.ToString("yyyy年M月d日");
@@ -35,12 +36,13 @@ public class TaskBoardViewModel : ViewModelBase
     private bool isEditing;
     private string editTitle = string.Empty;
     private string editDescription = string.Empty;
+    private DateTime? editStartDate;
     private DateTime? editDueDate;
     private bool editIsUrgent;
     private string editStatus = "Todo";
-    private int newTaskEstimatedHours = 1;
+    private int newTaskEstimatedHours;
     private int newTaskEstimatedMinutes;
-    private int editEstimatedHours = 1;
+    private int editEstimatedHours;
     private int editEstimatedMinutes;
 
     public TaskBoardViewModel()
@@ -55,14 +57,14 @@ public class TaskBoardViewModel : ViewModelBase
         FilteredTasks = new ObservableCollection<TaskItem>();
         StatusFilterOptions = ["全部", "Todo", "Doing", "Done"];
 
-        AddTaskCommand = new RelayCommand(_ => AddTask(), _ => !string.IsNullOrWhiteSpace(NewTaskTitle));
+        AddTaskCommand = new RelayCommand(_ => AddTask(), _ => CanAddTask());
         DeleteTaskCommand = new RelayCommand(_ => DeleteTask(), _ => SelectedTask is not null);
         CompleteTaskCommand = new RelayCommand(p => CompleteTask(p as TaskItem));
         StartTaskCommand = new RelayCommand(p => ConfirmStart(p as TaskItem));
         PauseTaskCommand = new RelayCommand(p => PauseTask(p as TaskItem));
         ToggleUrgentCommand = new RelayCommand(_ => ToggleUrgent(), _ => SelectedTask is not null);
         StartEditCommand = new RelayCommand(_ => StartEdit(), _ => SelectedTask is not null);
-        SaveEditCommand = new RelayCommand(_ => SaveEdit());
+        SaveEditCommand = new RelayCommand(_ => SaveEdit(), _ => CanSaveEdit());
         CancelEditCommand = new RelayCommand(_ => CancelEdit());
         CancelCreateCommand = new RelayCommand(_ => CancelCreate());
         ToggleCreatePanelCommand = new RelayCommand(_ => ToggleCreatePanel());
@@ -88,6 +90,7 @@ public class TaskBoardViewModel : ViewModelBase
             CurrentTime = now.ToString("HH:mm");
             UpdateTodaySummary();
 
+            var reapplyFilter = false;
             foreach (var task in Tasks)
             {
                 if (task.Status != "Doing") continue;
@@ -103,6 +106,7 @@ public class TaskBoardViewModel : ViewModelBase
                         task.CountdownDisplay = string.Empty;
                         task.CountdownProgress = 0;
                         task.CountdownStatusText = string.Empty;
+                        reapplyFilter = true;
                     }
                     else
                     {
@@ -122,6 +126,7 @@ public class TaskBoardViewModel : ViewModelBase
                     task.CountdownStatusText = task.IsBreakTime ? "休息中" : "进行中";
                 }
             }
+            if (reapplyFilter) ApplyFilter();
         };
         countdownTimer.Start();
     }
@@ -161,10 +166,16 @@ public class TaskBoardViewModel : ViewModelBase
         }
     }
 
+    public DateTime? NewTaskStartDate
+    {
+        get => newTaskStartDate;
+        set { newTaskStartDate = value; OnPropertyChanged(); RaiseAddCanExecuteChanged(); }
+    }
+
     public DateTime? NewTaskDueDate
     {
         get => newTaskDueDate;
-        set { newTaskDueDate = value; OnPropertyChanged(); }
+        set { newTaskDueDate = value; OnPropertyChanged(); RaiseAddCanExecuteChanged(); }
     }
 
     public bool NewTaskIsUrgent
@@ -203,7 +214,7 @@ public class TaskBoardViewModel : ViewModelBase
     public string EditTitle
     {
         get => editTitle;
-        set { editTitle = value; OnPropertyChanged(); }
+        set { editTitle = value; OnPropertyChanged(); RaiseSaveCanExecuteChanged(); }
     }
 
     public string EditDescription
@@ -212,10 +223,16 @@ public class TaskBoardViewModel : ViewModelBase
         set { editDescription = value; OnPropertyChanged(); }
     }
 
+    public DateTime? EditStartDate
+    {
+        get => editStartDate;
+        set { editStartDate = value; OnPropertyChanged(); RaiseSaveCanExecuteChanged(); }
+    }
+
     public DateTime? EditDueDate
     {
         get => editDueDate;
-        set { editDueDate = value; OnPropertyChanged(); }
+        set { editDueDate = value; OnPropertyChanged(); RaiseSaveCanExecuteChanged(); }
     }
 
     public bool EditIsUrgent
@@ -233,25 +250,25 @@ public class TaskBoardViewModel : ViewModelBase
     public int NewTaskEstimatedHours
     {
         get => newTaskEstimatedHours;
-        set { newTaskEstimatedHours = value; OnPropertyChanged(); }
+        set { newTaskEstimatedHours = value; OnPropertyChanged(); RaiseAddCanExecuteChanged(); }
     }
 
     public int NewTaskEstimatedMinutes
     {
         get => newTaskEstimatedMinutes;
-        set { newTaskEstimatedMinutes = value; OnPropertyChanged(); }
+        set { newTaskEstimatedMinutes = value; OnPropertyChanged(); RaiseAddCanExecuteChanged(); }
     }
 
     public int EditEstimatedHours
     {
         get => editEstimatedHours;
-        set { editEstimatedHours = value; OnPropertyChanged(); }
+        set { editEstimatedHours = value; OnPropertyChanged(); RaiseSaveCanExecuteChanged(); }
     }
 
     public int EditEstimatedMinutes
     {
         get => editEstimatedMinutes;
-        set { editEstimatedMinutes = value; OnPropertyChanged(); }
+        set { editEstimatedMinutes = value; OnPropertyChanged(); RaiseSaveCanExecuteChanged(); }
     }
 
     public ICommand AddTaskCommand { get; }
@@ -354,12 +371,26 @@ public class TaskBoardViewModel : ViewModelBase
     public static IReadOnlyList<int> HourOptions { get; } = [0, 1, 2, 3, 4, 5, 6, 7, 8];
     public static IReadOnlyList<int> MinuteOptions { get; } = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
+    private bool CanAddTask() =>
+        !string.IsNullOrWhiteSpace(NewTaskTitle)
+        && (NewTaskStartDate.HasValue || NewTaskDueDate.HasValue)
+        && (NewTaskEstimatedHours > 0 || NewTaskEstimatedMinutes > 0);
+
+    private bool CanSaveEdit() =>
+        !string.IsNullOrWhiteSpace(EditTitle)
+        && (EditStartDate.HasValue || EditDueDate.HasValue)
+        && (EditEstimatedHours > 0 || EditEstimatedMinutes > 0);
+
+    private void RaiseAddCanExecuteChanged() => (AddTaskCommand as RelayCommand)?.RaiseCanExecuteChanged();
+    private void RaiseSaveCanExecuteChanged() => (SaveEditCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
     private async Task LoadTasksAsync()
     {
         var tasks = await taskService.GetAllAsync();
         Tasks.Clear();
         foreach (var taskItem in tasks
-            .OrderBy(task => !task.IsUrgent)
+            .OrderBy(task => task.Status switch { "Doing" => 0, "Todo" => 1, _ => 2 })
+            .ThenBy(task => !task.IsUrgent)
             .ThenBy(task => task.DueDate ?? DateTime.MaxValue))
         {
             Tasks.Add(taskItem);
@@ -374,6 +405,7 @@ public class TaskBoardViewModel : ViewModelBase
         {
             Title = NewTaskTitle.Trim(),
             Description = NewTaskDescription.Trim(),
+            StartDate = NewTaskStartDate,
             DueDate = NewTaskDueDate,
             IsUrgent = NewTaskIsUrgent,
             Status = "Todo",
@@ -389,9 +421,10 @@ public class TaskBoardViewModel : ViewModelBase
 
         NewTaskTitle = string.Empty;
         NewTaskDescription = string.Empty;
-        NewTaskDueDate = DateTime.Today;
+        NewTaskStartDate = null;
+        NewTaskDueDate = null;
         NewTaskIsUrgent = false;
-        NewTaskEstimatedHours = 1;
+        NewTaskEstimatedHours = 0;
         NewTaskEstimatedMinutes = 0;
         IsCreatePanelVisible = false;
     }
@@ -417,6 +450,7 @@ public class TaskBoardViewModel : ViewModelBase
         task.CountdownStatusText = string.Empty;
         task.IsBreakTime = false;
         await taskService.UpdateAsync(task);
+        ApplyFilter();
         SelectedTask = task;
         StatusMessage = "任务已标记为完成。";
     }
@@ -431,6 +465,7 @@ public class TaskBoardViewModel : ViewModelBase
         task.CountdownPhaseSeconds = totalSeconds;
         task.CountdownEndTime = DateTime.Now.AddSeconds(totalSeconds);
         await taskService.UpdateAsync(task);
+        ApplyFilter();
         SelectedTask = task;
         StatusMessage = $"任务已开工 (预计 {task.EstimatedHours}h{task.EstimatedMinutes:D2}m)。";
     }
@@ -445,6 +480,7 @@ public class TaskBoardViewModel : ViewModelBase
         task.CountdownStatusText = string.Empty;
         task.IsBreakTime = false;
         await taskService.UpdateAsync(task);
+        ApplyFilter();
         SelectedTask = task;
         StatusMessage = "任务已暂停。";
     }
@@ -465,6 +501,7 @@ public class TaskBoardViewModel : ViewModelBase
         if (SelectedTask is null) return;
         EditTitle = SelectedTask.Title;
         EditDescription = SelectedTask.Description;
+        EditStartDate = SelectedTask.StartDate;
         EditDueDate = SelectedTask.DueDate;
         EditIsUrgent = SelectedTask.IsUrgent;
         EditStatus = SelectedTask.Status;
@@ -478,6 +515,7 @@ public class TaskBoardViewModel : ViewModelBase
         if (SelectedTask is null) return;
         SelectedTask.Title = EditTitle.Trim();
         SelectedTask.Description = EditDescription.Trim();
+        SelectedTask.StartDate = EditStartDate;
         SelectedTask.DueDate = EditDueDate;
         SelectedTask.IsUrgent = EditIsUrgent;
         SelectedTask.Status = EditStatus;
@@ -487,10 +525,11 @@ public class TaskBoardViewModel : ViewModelBase
         IsEditing = false;
         EditTitle = string.Empty;
         EditDescription = string.Empty;
+        EditStartDate = null;
         EditDueDate = null;
         EditIsUrgent = false;
         EditStatus = "Todo";
-        EditEstimatedHours = 1;
+        EditEstimatedHours = 0;
         EditEstimatedMinutes = 0;
         ApplyFilter();
         StatusMessage = "任务已更新。";
@@ -501,10 +540,11 @@ public class TaskBoardViewModel : ViewModelBase
         IsEditing = false;
         EditTitle = string.Empty;
         EditDescription = string.Empty;
+        EditStartDate = null;
         EditDueDate = null;
         EditIsUrgent = false;
         EditStatus = "Todo";
-        EditEstimatedHours = 1;
+        EditEstimatedHours = 0;
         EditEstimatedMinutes = 0;
     }
 
@@ -512,20 +552,25 @@ public class TaskBoardViewModel : ViewModelBase
     {
         NewTaskTitle = string.Empty;
         NewTaskDescription = string.Empty;
-        NewTaskDueDate = DateTime.Today;
+        NewTaskStartDate = null;
+        NewTaskDueDate = null;
         NewTaskIsUrgent = false;
-        NewTaskEstimatedHours = 1;
+        NewTaskEstimatedHours = 0;
         NewTaskEstimatedMinutes = 0;
         IsCreatePanelVisible = false;
     }
 
     private void ToggleCreatePanel()
     {
+        if (IsFilterVisible) IsFilterVisible = false;
+        if (IsEditing) IsEditing = false;
         IsCreatePanelVisible = !IsCreatePanelVisible;
     }
 
     private void ToggleFilter()
     {
+        if (IsCreatePanelVisible) IsCreatePanelVisible = false;
+        if (IsEditing) IsEditing = false;
         IsFilterVisible = !IsFilterVisible;
     }
 
