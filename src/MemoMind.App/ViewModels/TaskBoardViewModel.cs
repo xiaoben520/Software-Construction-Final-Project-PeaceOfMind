@@ -69,7 +69,7 @@ public class TaskBoardViewModel : ViewModelBase
         CancelCreateCommand = new RelayCommand(_ => CancelCreate());
         ToggleCreatePanelCommand = new RelayCommand(_ => ToggleCreatePanel());
         ToggleFilterCommand = new RelayCommand(_ => ToggleFilter());
-        FilterCommand = new RelayCommand(_ => ApplyFilter());
+        FilterCommand = new RelayCommand(p => ApplyFilter(p?.ToString() ?? "全部"));
         OpenCalendarCommand = new RelayCommand(_ => OpenCalendar());
         CloseCalendarCommand = new RelayCommand(_ => CloseCalendar());
         SelectCalendarDayCommand = new RelayCommand(p => SelectCalendarDay(p));
@@ -389,8 +389,8 @@ public class TaskBoardViewModel : ViewModelBase
         var tasks = await taskService.GetAllAsync();
         Tasks.Clear();
         foreach (var taskItem in tasks
-            .OrderBy(task => task.Status switch { "Doing" => 0, "Todo" => 1, _ => 2 })
-            .ThenBy(task => !task.IsUrgent)
+            .OrderBy(task => !task.IsUrgent)
+            .ThenBy(task => task.Status switch { "Doing" => 0, "Todo" => 1, _ => 2 })
             .ThenBy(task => task.DueDate ?? DateTime.MaxValue))
         {
             Tasks.Add(taskItem);
@@ -699,8 +699,9 @@ public class TaskBoardViewModel : ViewModelBase
         }
     }
 
-    private void ApplyFilter()
+    private void ApplyFilter(string? status = null)
     {
+        if (status is not null) StatusFilter = status;
         var filtered = StatusFilter switch
         {
             "Todo" => Tasks.Where(t => t.Status == "Todo"),
@@ -712,6 +713,7 @@ public class TaskBoardViewModel : ViewModelBase
         FilteredTasks.Clear();
         foreach (var task in filtered
             .OrderBy(t => !t.IsUrgent)
+            .ThenBy(t => t.Status switch { "Doing" => 0, "Todo" => 1, _ => 2 })
             .ThenBy(t => t.DueDate ?? DateTime.MaxValue))
         {
             FilteredTasks.Add(task);

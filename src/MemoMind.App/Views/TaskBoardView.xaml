@@ -223,17 +223,63 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Filter Bar -->
-                <WrapPanel Visibility="{Binding IsFilterVisible, Converter={StaticResource BoolToVisibilityConverter}}"
-                           Margin="0,0,0,10">
-                    <TextBlock Text="筛选：" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" />
-                    <ComboBox Width="120" ItemsSource="{Binding StatusFilterOptions}"
-                              SelectedItem="{Binding StatusFilter}"
-                              VerticalContentAlignment="Center" />
-                    <Button Content="应用筛选" Padding="12,6" Margin="10,0,0,0"
-                            Style="{StaticResource SidebarButtonStyle}"
-                            Command="{Binding FilterCommand}" />
-                </WrapPanel>
+                <!-- Filter Bar + Task Overview -->
+                <Grid Visibility="{Binding IsFilterVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+                      Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <!-- Filter buttons -->
+                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                        <Button Content="全部" Padding="10,5" Margin="0,0,0,4"
+                                Style="{StaticResource SidebarButtonStyle}" FontSize="12"
+                                Command="{Binding FilterCommand}" CommandParameter="全部" />
+                        <Button Content="Todo" Padding="10,5" Margin="0,0,0,4"
+                                Style="{StaticResource SidebarButtonStyle}" FontSize="12"
+                                Command="{Binding FilterCommand}" CommandParameter="Todo" />
+                        <Button Content="Doing" Padding="10,5" Margin="0,0,0,4"
+                                Style="{StaticResource SidebarButtonStyle}" FontSize="12"
+                                Command="{Binding FilterCommand}" CommandParameter="Doing" />
+                        <Button Content="Done" Padding="10,5"
+                                Style="{StaticResource SidebarButtonStyle}" FontSize="12"
+                                Command="{Binding FilterCommand}" CommandParameter="Done" />
+                    </StackPanel>
+                    <!-- Task Overview -->
+                    <Border Grid.Column="1" Background="{DynamicResource ListItemBrush}" CornerRadius="8" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="任务总览" FontWeight="SemiBold" FontSize="12"
+                                       Margin="0,0,0,6" Foreground="{DynamicResource PrimaryTextBrush}" />
+                            <ListBox ItemsSource="{Binding FilteredTasks}" BorderThickness="0"
+                                     Background="Transparent" MaxHeight="160"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="4,3" Margin="0,1">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="•" Width="14" FontSize="12"
+                                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                <TextBlock Text="{Binding Title}" FontSize="12"
+                                                           Foreground="{DynamicResource PrimaryTextBrush}"
+                                                           MaxWidth="120" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock FontSize="11" Margin="8,0,0,0"
+                                                           Foreground="{DynamicResource SecondaryTextBrush}">
+                                                    <Run Text="开始：" />
+                                                    <Run Text="{Binding StartDate, StringFormat={}{0:yyyy-MM-dd}, TargetNullValue=--}" />
+                                                </TextBlock>
+                                                <TextBlock FontSize="11" Margin="8,0,0,0"
+                                                           Foreground="{DynamicResource SecondaryTextBrush}">
+                                                    <Run Text="截止：" />
+                                                    <Run Text="{Binding DueDate, StringFormat={}{0:yyyy-MM-dd}, TargetNullValue=--}" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </Border>
+                </Grid>
 
                 <!-- Action Bar -->
                 <WrapPanel x:Name="ActionBar">
