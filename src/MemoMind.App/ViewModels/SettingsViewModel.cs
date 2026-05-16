@@ -242,6 +242,31 @@ public class SettingsViewModel : ViewModelBase
         get => recentFilesLimit;
         set { recentFilesLimit = Math.Clamp(value, 5, 200); OnPropertyChanged(); }
     }
+
+    public bool ShowRecentFiles
+    {
+        get => showRecentFiles;
+        set { showRecentFiles = value; OnPropertyChanged(); }
+    }
+
+    public bool ShowWorkspaceGroups
+    {
+        get => showWorkspaceGroups;
+        set { showWorkspaceGroups = value; OnPropertyChanged(); }
+    }
+
+    public bool ShowFileManager
+    {
+        get => showFileManager;
+        set { showFileManager = value; OnPropertyChanged(); }
+    }
+
+    public string FileManagerRootPath
+    {
+        get => fileManagerRootPath;
+        set { fileManagerRootPath = value ?? string.Empty; OnPropertyChanged(); }
+    }
+
     public bool IsCustomSoundPathVisible => useCustomSound;
 
     public ICommand BrowseSoundCommand { get; }
