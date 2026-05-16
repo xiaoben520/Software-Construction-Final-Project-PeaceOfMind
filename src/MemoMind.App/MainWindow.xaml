@@ -51,7 +51,57 @@
                                     Margin="0,0,0,10"
                                     Style="{StaticResource SidebarButtonStyle}"
                                     Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding Id}" />
+                                    CommandParameter="{Binding Id}">
+                                <Button.ToolTip>
+                                    <ToolTip MaxWidth="300" Padding="10" Visibility="Collapsed">
+                                        <ToolTip.Style>
+                                            <Style TargetType="ToolTip">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Id}" Value="task-board">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ToolTip.Style>
+                                        <StackPanel>
+                                            <TextBlock Text="任务总览" FontWeight="Bold" FontSize="13"
+                                                       Margin="0,0,0,6"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                                            <ItemsControl x:Name="TaskList" ItemsSource="{Binding PageViewModel.Tasks}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                            <TextBlock Text="•" Width="14" FontSize="12"
+                                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                            <TextBlock Text="{Binding Title}" FontSize="12"
+                                                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                                                       MaxWidth="180" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding Status}" FontSize="11"
+                                                                       Margin="10,0,0,0"
+                                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="暂无任务" FontSize="12"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                                       Margin="0,2,0,0" Visibility="Collapsed">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding PageViewModel.Tasks.Count}" Value="0">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </ToolTip>
+                                </Button.ToolTip>
+                            </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
