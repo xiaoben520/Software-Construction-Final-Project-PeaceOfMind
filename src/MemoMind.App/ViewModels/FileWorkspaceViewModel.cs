@@ -372,7 +372,7 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         {
             item.IsExpanded = true;
             if (item.Children.Count == 0)
-                LoadChildren(item);
+                _ = LoadChildrenAsync(item);
 
             foreach (var child in item.Children)
             {
@@ -566,7 +566,7 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
             workspaceExpandedPaths.Add(item.FullPath);
             if (item.Children.Count == 0)
             {
-                LoadChildren(item);
+                _ = LoadChildrenAsync(item);
             }
         }
         else
@@ -580,7 +580,7 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         if (!item.IsFolder) return;
         if (item.Children.Count == 0)
         {
-            LoadChildren(item);
+            _ = LoadChildrenAsync(item);
         }
         workspaceExpandedPaths.Add(item.FullPath);
     }
@@ -615,7 +615,7 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         workspaceExpandedPaths.Add(item.FullPath);
         if (item.Children.Count == 0)
         {
-            LoadChildren(item);
+            _ = LoadChildrenAsync(item);
         }
 
         foreach (var child in item.Children)
@@ -635,37 +635,46 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         }
     }
 
-    private void LoadChildren(WorkspaceItemViewModel folderItem)
+    private async Task LoadChildrenAsync(WorkspaceItemViewModel folderItem)
     {
-        folderItem.Children.Clear();
+        var fullPath = folderItem.FullPath;
+        List<WorkspaceItemViewModel> children;
         try
         {
-            foreach (var dir in Directory.GetDirectories(folderItem.FullPath))
+            children = await Task.Run(() =>
             {
-                folderItem.Children.Add(new WorkspaceItemViewModel
+                var list = new List<WorkspaceItemViewModel>();
+                foreach (var dir in Directory.EnumerateDirectories(fullPath))
                 {
-                    DisplayName = Path.GetFileName(dir),
-                    FullPath = dir,
-                    IsFolder = true,
-                    ParentGroup = folderItem.ParentGroup
-                });
-            }
-
-            foreach (var file in Directory.GetFiles(folderItem.FullPath))
-            {
-                folderItem.Children.Add(new WorkspaceItemViewModel
+                    list.Add(new WorkspaceItemViewModel
+                    {
+                        DisplayName = Path.GetFileName(dir),
+                        FullPath = dir,
+                        IsFolder = true,
+                        ParentGroup = folderItem.ParentGroup
+                    });
+                }
+                foreach (var file in Directory.EnumerateFiles(fullPath))
                 {
-                    DisplayName = Path.GetFileName(file),
-                    FullPath = file,
-                    IsFolder = false,
-                    ParentGroup = folderItem.ParentGroup
-                });
-            }
+                    list.Add(new WorkspaceItemViewModel
+                    {
+                        DisplayName = Path.GetFileName(file),
+                        FullPath = file,
+                        IsFolder = false,
+                        ParentGroup = folderItem.ParentGroup
+                    });
+                }
+                return list;
+            });
         }
         catch
         {
-            // Skip inaccessible folders
+            return;
         }
+
+        folderItem.Children.Clear();
+        foreach (var child in children)
+            folderItem.Children.Add(child);
     }
 
     private void SetupWatcherForGroup(WorkspaceGroupViewModel groupVm, WorkspaceGroup groupData)
@@ -781,7 +790,7 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         await settingsStore.SaveAsync(settings);
     }
 
-    public void RefreshFileManagerTree()
+    public async Task RefreshFileManagerTreeAsync()
     {
         CollectExpandedPaths(FileManagerTree);
         var checkedPaths = CollectCheckedPaths(FileManagerTree);
@@ -805,13 +814,15 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
             };
             rootItem.PropertyChanged += FileManagerItem_PropertyChanged;
             FileManagerTree.Add(rootItem);
-            BuildFileManagerTree(rootItem.Children, rootPath, rootItem);
+            await BuildFileManagerTreeAsync(rootItem.Children, rootPath, rootItem);
         }
 
         RestoreExpandedState(FileManagerTree);
         RestoreCheckedState(FileManagerTree, checkedPaths);
         UpdateHasCheckedItems();
     }
+
+    public void RefreshFileManagerTree() => _ = RefreshFileManagerTreeAsync();
 
     private void CollectExpandedPaths(IEnumerable<FileManagerItem> items)
     {
@@ -860,45 +871,60 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         }
     }
 
-    private void BuildFileManagerTree(ObservableCollection<FileManagerItem> parentCollection, string path, FileManagerItem? parent)
+    private async Task BuildFileManagerTreeAsync(ObservableCollection<FileManagerItem> parentCollection, string path, FileManagerItem? parent)
     {
+        List<(string fullPath, bool isFolder)> entries;
         try
         {
-            foreach (var dir in Directory.GetDirectories(path))
+            entries = await Task.Run(() =>
             {
-                if (hiddenPaths.Contains(dir)) continue;
+                var list = new List<(string, bool)>();
+                foreach (var dir in Directory.EnumerateDirectories(path))
+                {
+                    if (!hiddenPaths.Contains(dir))
+                        list.Add((dir, true));
+                }
+                foreach (var file in Directory.EnumerateFiles(path))
+                {
+                    if (!hiddenPaths.Contains(file))
+                        list.Add((file, false));
+                }
+                return list;
+            });
+        }
+        catch
+        {
+            return;
+        }
 
+        foreach (var (fullPath, isFolder) in entries)
+        {
+            if (isFolder)
+            {
                 var dirItem = new FileManagerItem
                 {
-                    DisplayName = Path.GetFileName(dir),
-                    FullPath = dir,
+                    DisplayName = Path.GetFileName(fullPath),
+                    FullPath = fullPath,
                     IsFolder = true,
-                    IsExpanded = expandedPaths.Contains(dir),
+                    IsExpanded = expandedPaths.Contains(fullPath),
                     Parent = parent
                 };
                 dirItem.PropertyChanged += FileManagerItem_PropertyChanged;
                 parentCollection.Add(dirItem);
-                BuildFileManagerTree(dirItem.Children, dir, dirItem);
+                await BuildFileManagerTreeAsync(dirItem.Children, fullPath, dirItem);
             }
-
-            foreach (var file in Directory.GetFiles(path))
+            else
             {
-                if (hiddenPaths.Contains(file)) continue;
-
                 var fileItem = new FileManagerItem
                 {
-                    DisplayName = Path.GetFileName(file),
-                    FullPath = file,
+                    DisplayName = Path.GetFileName(fullPath),
+                    FullPath = fullPath,
                     IsFolder = false,
                     Parent = parent
                 };
                 fileItem.PropertyChanged += FileManagerItem_PropertyChanged;
                 parentCollection.Add(fileItem);
             }
-        }
-        catch
-        {
-            // Skip inaccessible directories
         }
     }
 
