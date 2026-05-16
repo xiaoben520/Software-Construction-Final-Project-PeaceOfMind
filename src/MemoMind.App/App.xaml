@@ -18,6 +18,8 @@
                 xmlns:converters="clr-namespace:MemoMind.App.Converters" />
             <converters:ProgressToArcConverter x:Key="ProgressToArcConverter"
                 xmlns:converters="clr-namespace:MemoMind.App.Converters" />
+            <converters:BoolToCollapseTextConverter x:Key="BoolToCollapseTextConverter"
+                xmlns:converters="clr-namespace:MemoMind.App.Converters" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>
