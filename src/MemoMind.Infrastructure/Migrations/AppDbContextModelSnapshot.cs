@@ -187,6 +187,9 @@ public partial class AppDbContextModelSnapshot : ModelSnapshot
                 .IsRequired()
                 .HasColumnType("TEXT");
 
+            b.Property<DateTime?>("StartDate")
+                .HasColumnType("TEXT");
+
             b.Property<string>("Status")
                 .IsRequired()
                 .HasColumnType("TEXT");
