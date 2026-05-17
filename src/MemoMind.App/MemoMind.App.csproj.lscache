@@ -31,7 +31,7 @@ TemporaryDependencyNodeTargetIdentifier=net8.0-windows
 /noconfig
 /unsafe-
 /checked-
-/nowarn:1701,1702,1701,1702,8002
+/nowarn:1701,1702,1701,1702
 /fullpaths
 /nostdlib+
 /errorreport:prompt
@@ -81,6 +81,7 @@ Models/
  WorkspaceItemViewModel.cs
 obj/Debug/net8.0-windows/
  .NETCoreApp,Version=v8.0.AssemblyAttributes.cs
+ App.g.cs
  GeneratedInternalTypeHelper.g.cs
  MainWindow.g.cs
  MemoMind.App.AssemblyInfo.cs
@@ -145,7 +146,7 @@ Views/
  microsoft.extensions.logging/8.0.0/lib/net8.0/Microsoft.Extensions.Logging.dll
  microsoft.extensions.options/8.0.0/lib/net8.0/Microsoft.Extensions.Options.dll
  microsoft.extensions.primitives/8.0.0/lib/net8.0/Microsoft.Extensions.Primitives.dll
- microsoft.netcore.app.ref/8.0.26/ref/net8.0/
+ microsoft.netcore.app.ref/8.0.24/ref/net8.0/
   Microsoft.CSharp.dll
   Microsoft.VisualBasic.Core.dll
   Microsoft.VisualBasic.dll
@@ -308,7 +309,7 @@ Views/
   System.Xml.XmlSerializer.dll
   System.Xml.XPath.dll
   System.Xml.XPath.XDocument.dll
- microsoft.windowsdesktop.app.ref/8.0.26/ref/net8.0/
+ microsoft.windowsdesktop.app.ref/8.0.24/ref/net8.0/
   Accessibility.dll
   Microsoft.Win32.Registry.AccessControl.dll
   Microsoft.Win32.SystemEvents.dll
@@ -350,14 +351,14 @@ Views/
  sqlitepclraw.provider.e_sqlite3/2.1.6/lib/net6.0-windows7.0/SQLitePCLRaw.provider.e_sqlite3.dll
 
 [analyzerReferences]
-<DOTNET>/sdk/10.0.203/Sdks/Microsoft.NET.Sdk/analyzers/
+<DOTNET>/sdk/10.0.103/Sdks/Microsoft.NET.Sdk/analyzers/
  Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll
  Microsoft.CodeAnalysis.NetAnalyzers.dll
 <NUGET>/
  microsoft.entityframeworkcore.analyzers/8.0.8/analyzers/dotnet/cs/Microsoft.EntityFrameworkCore.Analyzers.dll
  microsoft.extensions.logging.abstractions/8.0.0/analyzers/dotnet/roslyn4.4/cs/Microsoft.Extensions.Logging.Generators.dll
  microsoft.extensions.options/8.0.0/analyzers/dotnet/roslyn4.4/cs/Microsoft.Extensions.Options.SourceGeneration.dll
- microsoft.netcore.app.ref/8.0.26/analyzers/dotnet/cs/
+ microsoft.netcore.app.ref/8.0.24/analyzers/dotnet/cs/
   Microsoft.Interop.ComInterfaceGenerator.dll
   Microsoft.Interop.JavaScript.JSImportGenerator.dll
   Microsoft.Interop.LibraryImportGenerator.dll
@@ -366,5 +367,5 @@ Views/
   System.Text.RegularExpressions.Generator.dll
 
 [analyzerConfigFiles]
-<DOTNET>/sdk/10.0.203/Sdks/Microsoft.NET.Sdk/analyzers/build/config/analysislevel_8_default.globalconfig
+<DOTNET>/sdk/10.0.103/Sdks/Microsoft.NET.Sdk/analyzers/build/config/analysislevel_8_default.globalconfig
 obj/Debug/net8.0-windows/MemoMind.App.GeneratedMSBuildEditorConfig.editorconfig
