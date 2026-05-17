@@ -125,23 +125,33 @@ public class ChatService : IChatService
             var basePrompt = BuildMemoryAugmentedPrompt(memories);
             basePrompt += "\n\n## 任务管理工具\n" +
                           "你可以调用以下函数来真正操作任务（不是假装操作）：\n" +
-                          "- create_task: 创建新任务（参数：title必填, description选填, due_date选填, is_urgent选填）\n" +
+                          "- create_task: 创建新任务（参数：title必填, description选填, start_date选填, due_date选填, estimated_hours选填, estimated_minutes选填, is_urgent选填）\n" +
                           "- list_tasks: 查看所有任务\n" +
-                          "- update_task: 更新任务状态/标题/紧急度（参数：title必填用于查找）\n" +
+                          "- update_task: 更新任务（参数：title必填用于查找, new_title选填, description选填, status选填, is_urgent选填, start_date选填, due_date选填, estimated_hours选填, estimated_minutes选填）\n" +
                           "- delete_task: 删除任务（参数：title必填用于查找）\n" +
+                          "\n## 赛博植物工具\n" +
+                          "你可以调用以下函数来照顾用户的植物伙伴：\n" +
+                          "- care_plant: 给植物浇水/施肥/晒太阳（参数：action必填，可选值water/fertilize/sunbathe；plant_type选填，不填则照料当前植物）\n" +
+                          "- check_plant_status: 查看植物当前状态（参数：plant_type选填）\n" +
+                          "- switch_plant: 切换到另一株植物（参数：plant_type必填，可以是中文名如'仙人掌'或英文id如'cactus'）\n" +
+                          "- list_plants: 列出所有可用植物\n" +
                           "\n【必须遵守】\n" +
                           "用户说「创建/添加/新建/记一下/帮我安排」任务时 → 你必须调用 create_task\n" +
                           "用户说「查看/列出/有哪些/任务列表」 → 你必须调用 list_tasks\n" +
                           "用户说「完成/标记/修改/更新/改成」任务时 → 你必须调用 update_task\n" +
                           "用户说「删除/移除/取消/去掉」任务时 → 你必须调用 delete_task\n" +
-                          "不要只用文字说「已经帮你创建了」却不调用工具！调用工具后根据实际结果回复。" +
+                          "用户说「浇水/施肥/晒太阳/照顾植物/浇花」 → 你必须调用 care_plant\n" +
+                          "用户说「植物怎么样/植物状态/看看植物/还好吗」 → 你必须调用 check_plant_status\n" +
+                          "用户说「切换植物/换一棵/换到/去XX那边」 → 你必须调用 switch_plant\n" +
+                          "用户说「有哪些植物/植物列表/看看植物」 → 你必须调用 list_plants\n" +
+                          "不要只用文字说「已经帮你做了」却不调用工具！调用工具后根据实际结果回复。" +
                           "如果用户只是在倾诉心情、聊天，则不需要调用工具，正常回复即可。";
 
             var tools = Infrastructure.Services.AgentToolExecutor.GetAvailableTools();
             var nativeResult = await CallAiWithToolsAsync(settings, basePrompt, inputText, history, tools);
 
             // If native tools actually executed (not just diagnostics), return
-            var realTools = new[] { "create_task", "list_tasks", "update_task", "delete_task" };
+            var realTools = new[] { "create_task", "list_tasks", "update_task", "delete_task", "care_plant", "check_plant_status", "switch_plant", "list_plants" };
             if (nativeResult.ToolResults.Any(tr => realTools.Contains(tr.ToolName)))
                 return nativeResult;
 
@@ -208,22 +218,29 @@ public class ChatService : IChatService
         });
 
         var basePrompt = BuildMemoryAugmentedPrompt(memories);
-        basePrompt += "\n\n## 任务操作协议（必须严格遵守）\n" +
+        basePrompt += "\n\n## 操作协议（必须严格遵守）\n" +
             "你需要用一个 JSON 对象来回复，格式如下：\n\n" +
             "{\n" +
             "  \"action\": \"create_task\",\n" +
             "  \"args\": {\"title\": \"用户说的任务标题\", \"due_date\": \"2026-06-01 15:00\", \"is_urgent\": false},\n" +
             "  \"reply\": \"你的自然语言回复\"\n" +
             "}\n\n" +
-            "action 可选值：create_task, list_tasks, update_task, delete_task, none\n" +
-            "create_task args: title(必填), description(选填), due_date(选填，格式yyyy-MM-dd HH:mm), is_urgent(选填，true/false)\n" +
-            "update_task args: title(必填，用于查找原任务), status(选填Todo/Doing/Done), new_title(选填), is_urgent(选填)\n" +
+            "action 可选值：\n" +
+            "  任务：create_task, list_tasks, update_task, delete_task\n" +
+            "  植物：care_plant, check_plant_status, switch_plant, list_plants\n" +
+            "  无操作：none\n" +
+            "create_task args: title(必填), description(选填), start_date(选填，格式yyyy-MM-dd HH:mm), due_date(选填，格式yyyy-MM-dd HH:mm), estimated_hours(选填，整数), estimated_minutes(选填，整数), is_urgent(选填，true/false)\n" +
+            "update_task args: title(必填，用于查找原任务), new_title(选填), description(选填), status(选填Todo/Doing/Done), is_urgent(选填，true/false), start_date(选填), due_date(选填), estimated_hours(选填), estimated_minutes(选填)\n" +
             "delete_task args: title(必填，用于查找要删除的任务)\n" +
             "list_tasks args: {}\n" +
+            "care_plant args: action(必填，water/fertilize/sunbathe), plant_type(选填)\n" +
+            "check_plant_status args: plant_type(选填)\n" +
+            "switch_plant args: plant_type(必填，植物中文名或英文id)\n" +
+            "list_plants args: {}\n" +
             "\n【关键规则】\n" +
-            "1. 如果用户要求操作任务（创建/查看/更新/删除），action 填对应的操作名，args 填从用户消息中提取的真实参数\n" +
+            "1. 如果用户要求操作任务或照料植物，action 填对应的操作名，args 填从用户消息中提取的真实参数\n" +
             "2. 如果用户只是聊天/倾诉，action 填 \"none\"，args 填 {}\n" +
-            "3. title 必须是用户原话中提到的真实内容，绝不可以用占位符\n" +
+            "3. 所有参数必须是用户原话中提到的真实内容，绝不可以用占位符\n" +
             "4. reply 用自然友好的中文回复用户\n" +
             "5. 只输出纯 JSON，不要包含 markdown 代码块标记或其他任何文字";
 
@@ -718,10 +735,14 @@ public class ChatService : IChatService
 
     private static bool IsTaskRelatedInput(string input)
     {
-        var keywords = new[] { "创建", "添加", "新建", "任务", "记一下", "帮我安排", "查看", "列出", "有哪些",
-                               "完成", "标记", "修改", "更新", "改成", "删除", "移除", "取消", "去掉",
-                               "create", "add", "task", "todo", "done", "delete", "remove" };
-        return keywords.Any(k => input.Contains(k, StringComparison.OrdinalIgnoreCase));
+        var taskKeywords = new[] { "创建", "添加", "新建", "任务", "记一下", "帮我安排", "查看", "列出", "有哪些",
+                                   "完成", "标记", "修改", "更新", "改成", "删除", "移除", "取消", "去掉",
+                                   "create", "add", "task", "todo", "done", "delete", "remove" };
+        var plantKeywords = new[] { "浇水", "施肥", "晒太阳", "照顾植物", "浇花", "浇一下",
+                                    "植物", "仙人掌", "向日葵", "薄荷", "蕨类", "竹子",
+                                    "切换", "换一棵", "plant", "care" };
+        return taskKeywords.Any(k => input.Contains(k, StringComparison.OrdinalIgnoreCase))
+            || plantKeywords.Any(k => input.Contains(k, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string BuildMemoryAugmentedPrompt(IReadOnlyList<string> memories)
