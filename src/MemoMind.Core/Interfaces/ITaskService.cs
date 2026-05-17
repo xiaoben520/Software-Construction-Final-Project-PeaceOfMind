@@ -8,4 +8,6 @@ public interface ITaskService
     Task AddAsync(TaskItem taskItem);
     Task UpdateAsync(TaskItem taskItem);
     Task DeleteAsync(int id);
+    void ClearChangeTracker();
+    Task ResetAndSeedAsync();
 }

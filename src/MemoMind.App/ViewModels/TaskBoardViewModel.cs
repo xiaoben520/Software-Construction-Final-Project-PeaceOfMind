@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MemoMind.App.ViewModels;
 
-public class TaskBoardViewModel : ViewModelBase
+public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
 {
     private readonly ITaskService taskService;
     private readonly DispatcherTimer countdownTimer;
@@ -417,6 +417,23 @@ public class TaskBoardViewModel : ViewModelBase
         }
         ApplyFilter();
         StatusMessage = $"已从数据库加载 {Tasks.Count} 条任务。";
+    }
+
+    public async Task ReloadTasksAsync()
+    {
+        taskService.ClearChangeTracker();
+        await LoadTasksAsync();
+    }
+
+    public async Task OnNavigatedToAsync()
+    {
+        await ReloadTasksAsync();
+    }
+
+    public async Task ResetAndReloadAsync()
+    {
+        await taskService.ResetAndSeedAsync();
+        await LoadTasksAsync();
     }
 
     private async void AddTask()

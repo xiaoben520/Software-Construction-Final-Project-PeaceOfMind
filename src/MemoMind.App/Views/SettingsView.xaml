@@ -17,8 +17,6 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="120" />
@@ -29,13 +27,6 @@
                     <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
                               ItemsSource="{Binding ThemeOptions}"
                               SelectedItem="{Binding Theme}" />
-
-                    <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="提醒小时" />
-                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
-                             Text="{Binding ReminderHour, UpdateSourceTrigger=PropertyChanged}" />
-
-                    <CheckBox Grid.Row="2" Grid.Column="1" Content="启用每日提醒"
-                              IsChecked="{Binding EnableReminder}" />
                 </Grid>
 
                 <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,8,0,16" />
@@ -258,23 +249,54 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="管理器默认目录" />
-                    <TextBox Grid.Column="1" Padding="10,6"
-                             Text="{Binding FileManagerRootPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <Grid Grid.Column="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Padding="10,6"
+                                 Text="{Binding FileManagerRootPath, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Grid.Column="1" Content="选择" Padding="12,4" Height="28" Margin="8,0,0,0"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                Command="{Binding BrowseFileManagerRootCommand}" />
+                        <Button Grid.Column="2" Content="清空" Padding="12,4" Height="28" Margin="6,0,0,0"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                Command="{Binding ClearFileManagerRootCommand}" />
+                    </Grid>
                 </Grid>
 
-                <TextBlock Text="测试工具" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
+                <TextBlock Text="恢复初始化" Margin="0,0,0,10" FontSize="18" FontWeight="SemiBold"
                        Foreground="{DynamicResource PrimaryTextBrush}" />
-                <TextBlock Text="用于测试环境清理：删除本地数据库后需重启应用。" Margin="0,0,0,12"
+                <TextBlock Text="可整体恢复，也可单独重置某个模块的数据。" Margin="0,0,0,12"
                        Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
-                <Button Content="删除数据库" Padding="16,8" HorizontalAlignment="Left"
-                    Style="{StaticResource SidebarButtonStyle}"
-                    Command="{Binding DeleteDatabaseCommand}" />
+                <StackPanel Orientation="Vertical" Margin="0,0,0,8">
+                    <Button Content="全部恢复初始化" Padding="16,8" HorizontalAlignment="Left" Margin="0,0,0,8"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Command="{Binding ResetAllCommand}" />
+                    <WrapPanel>
+                        <Button Content="任务看板任务初始化" Padding="16,8" Margin="0,0,8,8"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                Command="{Binding ResetTaskBoardCommand}" />
+                        <Button Content="AI 聊天人设恢复默认" Padding="16,8" Margin="0,0,8,8"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                Command="{Binding ResetAiPersonaCommand}" />
+                        <Button Content="文件工作区初始化" Padding="16,8" Margin="0,0,8,8"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                Command="{Binding ResetWorkspaceGroupsCommand}" />
+                        <Button Content="赛博植物恢复默认" Padding="16,8" Margin="0,0,8,8"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                Command="{Binding ResetCyberPlantCommand}" />
+                    </WrapPanel>
+                    <Button Content="清空数据库（解决版本升级导致的表结构错误）" Padding="16,8"
+                            HorizontalAlignment="Left" Margin="0,8,0,0"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Command="{Binding ClearDatabaseCommand}" />
+                </StackPanel>
 
                 <Border Height="1" Background="{DynamicResource SecondaryTextBrush}" Opacity="0.2" Margin="0,16" />
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-                    <Button Content="重新加载" Margin="0,0,10,0" Padding="16,8"
-                            Style="{StaticResource SidebarButtonStyle}" Command="{Binding LoadCommand}" />
                     <Button Content="保存设置" Padding="16,8"
                             Style="{StaticResource SidebarButtonStyle}" Command="{Binding SaveCommand}" />
                 </StackPanel>

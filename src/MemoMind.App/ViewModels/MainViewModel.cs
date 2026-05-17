@@ -56,6 +56,28 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        // 离开设置页时检查未保存的更改
+        if (currentPage != null &&
+            currentPage != targetPage &&
+            currentPage.PageViewModel is SettingsViewModel settingsVm &&
+            settingsVm.HasUnsavedChanges)
+        {
+            var result = System.Windows.MessageBox.Show(
+                "设置尚未保存，是否保存当前修改？",
+                "未保存的更改",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question);
+
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                settingsVm.SaveCurrentSettings();
+            }
+            else
+            {
+                settingsVm.ReloadCurrentSettings();
+            }
+        }
+
         currentPage = targetPage;
         OnPropertyChanged(nameof(CurrentPageViewModel));
         OnPropertyChanged(nameof(CurrentPageTitle));

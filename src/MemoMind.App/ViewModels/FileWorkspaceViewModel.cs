@@ -299,6 +299,32 @@ public class FileWorkspaceViewModel : ViewModelBase, ISettingsAwareViewModel
         }
     }
 
+    public async Task ResetWorkspaceGroupsAsync()
+    {
+        await stateService.SaveWorkspaceGroupsAsync([]);
+        await LoadWorkspaceGroupsAsync();
+        WorkspaceStatus = "保存工作区已恢复初始化。";
+    }
+
+    public async Task ResetAllAsync()
+    {
+        // Clear recent files
+        RecentFiles.Clear();
+        await stateService.SaveRecentFilesAsync([]);
+        RecentStatus = string.Empty;
+
+        // Clear workspace groups
+        await stateService.SaveWorkspaceGroupsAsync([]);
+        await LoadWorkspaceGroupsAsync();
+        WorkspaceStatus = string.Empty;
+
+        // Clear file manager state
+        FileManagerRootPaths.Clear();
+        expandedPaths.Clear();
+        hiddenPaths.Clear();
+        RefreshFileManagerTree();
+    }
+
     // ==================== Initialization ====================
 
     private async Task LoadAsync()
