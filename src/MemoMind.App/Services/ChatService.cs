@@ -339,7 +339,7 @@ public class ChatService : IChatService
         IReadOnlyList<ToolDefinition> tools)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
-        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-v4-flash" : settings.AiModel;
         // DeepSeek requires |tools suffix to enable function calling
         if (baseUrl.Contains("deepseek", StringComparison.OrdinalIgnoreCase) && !model.Contains('|'))
         {
@@ -536,7 +536,7 @@ public class ChatService : IChatService
     private async Task<string> CallAiAsync(UserSettings settings, string systemPrompt, string userInput)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
-        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-v4-flash" : settings.AiModel;
         var finalSystemPrompt = BuildSystemPrompt(settings, systemPrompt);
 
         var requestBody = new
@@ -575,7 +575,7 @@ public class ChatService : IChatService
     private async Task<string> CallAiWithHistoryAsync(UserSettings settings, string systemPrompt, string userInput, IReadOnlyList<ChatHistoryItem> history)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
-        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-v4-flash" : settings.AiModel;
         var finalSystemPrompt = BuildSystemPrompt(settings, systemPrompt);
 
         var messages = new List<object>
@@ -625,7 +625,7 @@ public class ChatService : IChatService
     private async Task<string> CallAiJsonModeAsync(UserSettings settings, string systemPrompt, string userInput, IReadOnlyList<ChatHistoryItem> history)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
-        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-v4-flash" : settings.AiModel;
         var finalSystemPrompt = BuildSystemPrompt(settings, systemPrompt);
 
         var messages = new List<object>
@@ -768,7 +768,7 @@ public class ChatService : IChatService
     private async Task<IReadOnlyList<ExtractedMemory>> CallExtractionApiAsync(UserSettings settings, string userMessage, string aiReply)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
-        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
+        var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-v4-flash" : settings.AiModel;
 
         var extractionPrompt =
             "请分析以下对话，提取关于用户的值得长期记住的信息（如喜好、兴趣、习惯、个人信息、重要计划等）。" +

@@ -488,6 +488,51 @@ public class CyberPlantViewModel : ViewModelBase, ISettingsAwareViewModel, IPage
         UpdateStatus();
     }
 
+
+    public async Task ResetAllDataAsync()
+    {
+        try
+        {
+            var customProfiles = await customPlantService.GetAllAsync();
+            foreach (var profile in customProfiles)
+            {
+                await customPlantService.DeleteAsync(profile.Id);
+            }
+        }
+        catch
+        {
+            StatusMessage = "自定义植物清理失败，请确认数据库已迁移。";
+        }
+
+        try
+        {
+            if (File.Exists(PlantDataPath)) File.Delete(PlantDataPath);
+            if (File.Exists(PlantProfileOverridesPath)) File.Delete(PlantProfileOverridesPath);
+        }
+        catch
+        {
+            // Ignore file cleanup errors
+        }
+
+        profileOverrides = new Dictionary<string, PlantProfileOverride>(StringComparer.OrdinalIgnoreCase);
+        plant = LoadPlant();
+        EnsurePlantDefaults(plant);
+        InitializeNewPlantState(CurrentPreset);
+
+        Messages.Clear();
+        foreach (var msg in plant.Messages)
+        {
+            Messages.Add(msg);
+        }
+
+        await LoadCustomPlantsAsync();
+        BuildPlantItems();
+        UpdatePlantImageSource();
+        UpdateStatus();
+        SavePlant();
+
+        StatusMessage = "赛博植物已恢复默认设定。";
+}
     public Task OnNavigatedToAsync()
     {
         // Reload plant from JSON — Agent may have modified it via chat
@@ -515,6 +560,7 @@ public class CyberPlantViewModel : ViewModelBase, ISettingsAwareViewModel, IPage
         }
 
         return Task.CompletedTask;
+
     }
 
     private void SelectPlant(PlantListItem? item)
