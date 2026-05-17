@@ -25,6 +25,11 @@ public class JsonAppSettingsStore : IAppSettingsStore
         {
             var json = File.ReadAllText(settingsFilePath);
             var settings = JsonSerializer.Deserialize<UserSettings>(json);
+            if (settings is not null && !string.IsNullOrWhiteSpace(settings.ApiKey))
+            {
+                settings.ApiKey = ApiKeyProtection.Unprotect(settings.ApiKey);
+            }
+
             return Task.FromResult(settings ?? new UserSettings());
         }
         catch
@@ -39,6 +44,11 @@ public class JsonAppSettingsStore : IAppSettingsStore
         if (!string.IsNullOrWhiteSpace(directory))
         {
             Directory.CreateDirectory(directory);
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.ApiKey))
+        {
+            settings.ApiKey = ApiKeyProtection.Protect(settings.ApiKey);
         }
 
         var json = JsonSerializer.Serialize(settings, serializerOptions);
