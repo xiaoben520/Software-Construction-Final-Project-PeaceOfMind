@@ -223,9 +223,9 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Filter Bar + Task Overview -->
+                <!-- Filter controls (visible only when filter is open) -->
                 <StackPanel Visibility="{Binding IsFilterVisible, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Margin="0,0,0,10">
+                            Margin="0,0,0,8">
                     <!-- Horizontal status filter buttons -->
                     <WrapPanel Margin="0,0,0,8">
                         <Button Content="全部" Padding="10,5" Margin="0,0,6,0"
@@ -268,42 +268,57 @@
                                     Command="{Binding FilterByDayCommand}" />
                         </WrapPanel>
                     </Border>
-                    <!-- Task Overview -->
-                    <Border Background="{DynamicResource ListItemBrush}" CornerRadius="8" Padding="10">
-                        <StackPanel>
-                            <TextBlock Text="任务总览" FontWeight="SemiBold" FontSize="12"
-                                       Margin="0,0,0,6" Foreground="{DynamicResource PrimaryTextBrush}" />
-                            <ListBox ItemsSource="{Binding FilteredTasks}"
-                                     SelectedItem="{Binding SelectedTask}" BorderThickness="0"
-                                     Background="Transparent" MaxHeight="140"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Padding="4,3" Margin="0,1">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="•" Width="14" FontSize="12"
-                                                           Foreground="{DynamicResource SecondaryTextBrush}" />
-                                                <TextBlock Text="{Binding Title}" FontSize="12"
-                                                           Foreground="{DynamicResource PrimaryTextBrush}"
-                                                           MaxWidth="120" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock FontSize="11" Margin="8,0,0,0"
-                                                           Foreground="{DynamicResource SecondaryTextBrush}">
-                                                    <Run Text="开始：" />
-                                                    <Run Text="{Binding StartDate, StringFormat={}{0:yyyy-MM-dd}, TargetNullValue=--}" />
-                                                </TextBlock>
-                                                <TextBlock FontSize="11" Margin="8,0,0,0"
-                                                           Foreground="{DynamicResource SecondaryTextBrush}">
-                                                    <Run Text="截止：" />
-                                                    <Run Text="{Binding DueDate, StringFormat={}{0:yyyy-MM-dd}, TargetNullValue=--}" />
-                                                </TextBlock>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </StackPanel>
-                    </Border>
                 </StackPanel>
+
+                <!-- Task Overview (visible when filter or calendar is open) -->
+                <Border Background="{DynamicResource ListItemBrush}" CornerRadius="8" Padding="10"
+                        Margin="0,0,0,10">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsFilterVisible}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsCalendarVisible}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <TextBlock Text="任务总览" FontWeight="SemiBold" FontSize="12"
+                                   Margin="0,0,0,6" Foreground="{DynamicResource PrimaryTextBrush}" />
+                        <ListBox ItemsSource="{Binding FilteredTasks}"
+                                 SelectedItem="{Binding SelectedTask}" BorderThickness="0"
+                                 Background="Transparent" MaxHeight="140"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="4,3" Margin="0,1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="•" Width="14" FontSize="12"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding Title}" FontSize="12"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                                       MaxWidth="120" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock FontSize="11" Margin="8,0,0,0"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}">
+                                                <Run Text="开始：" />
+                                                <Run Text="{Binding StartDate, StringFormat={}{0:yyyy-MM-dd}, TargetNullValue=--}" />
+                                            </TextBlock>
+                                            <TextBlock FontSize="11" Margin="8,0,0,0"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}">
+                                                <Run Text="截止：" />
+                                                <Run Text="{Binding DueDate, StringFormat={}{0:yyyy-MM-dd}, TargetNullValue=--}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
 
                 <!-- Action Bar -->
                 <WrapPanel x:Name="ActionBar">
