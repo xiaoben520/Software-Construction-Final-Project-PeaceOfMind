@@ -224,34 +224,58 @@
                 </StackPanel>
 
                 <!-- Filter Bar + Task Overview -->
-                <Grid Visibility="{Binding IsFilterVisible, Converter={StaticResource BoolToVisibilityConverter}}"
-                      Margin="0,0,0,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <!-- Filter buttons -->
-                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                        <Button Content="全部" Padding="10,5" Margin="0,0,0,4"
+                <StackPanel Visibility="{Binding IsFilterVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Margin="0,0,0,10">
+                    <!-- Horizontal status filter buttons -->
+                    <WrapPanel Margin="0,0,0,8">
+                        <Button Content="全部" Padding="10,5" Margin="0,0,6,0"
                                 Style="{StaticResource SidebarButtonStyle}" FontSize="12"
                                 Command="{Binding FilterCommand}" CommandParameter="全部" />
-                        <Button Content="Todo" Padding="10,5" Margin="0,0,0,4"
+                        <Button Content="Todo" Padding="10,5" Margin="0,0,6,0"
                                 Style="{StaticResource SidebarButtonStyle}" FontSize="12"
                                 Command="{Binding FilterCommand}" CommandParameter="Todo" />
-                        <Button Content="Doing" Padding="10,5" Margin="0,0,0,4"
+                        <Button Content="Doing" Padding="10,5" Margin="0,0,6,0"
                                 Style="{StaticResource SidebarButtonStyle}" FontSize="12"
                                 Command="{Binding FilterCommand}" CommandParameter="Doing" />
                         <Button Content="Done" Padding="10,5"
                                 Style="{StaticResource SidebarButtonStyle}" FontSize="12"
                                 Command="{Binding FilterCommand}" CommandParameter="Done" />
-                    </StackPanel>
+                    </WrapPanel>
+                    <!-- Quick date filter bar -->
+                    <Border Background="{DynamicResource ListItemBrush}" CornerRadius="8" Padding="8"
+                            Margin="0,0,0,8">
+                        <WrapPanel>
+                            <Button Content="今天" Padding="8,4" Margin="0,0,6,0"
+                                    Style="{StaticResource SidebarButtonStyle}" FontSize="12"
+                                    Command="{Binding FilterByDayCommand}"
+                                    CommandParameter="today" />
+                            <Button Content="本周" Padding="8,4" Margin="0,0,6,0"
+                                    Style="{StaticResource SidebarButtonStyle}" FontSize="12"
+                                    Command="{Binding FilterByWeekCommand}" />
+                            <Button Content="本月" Padding="8,4" Margin="0,0,10,0"
+                                    Style="{StaticResource SidebarButtonStyle}" FontSize="12"
+                                    Command="{Binding FilterByMonthCommand}" />
+                            <TextBlock Text="范围：" VerticalAlignment="Center" FontSize="12"
+                                       Margin="0,0,6,0" Foreground="{DynamicResource SecondaryTextBrush}" />
+                            <DatePicker Width="120" SelectedDate="{Binding CustomFilterStart}"
+                                        VerticalAlignment="Center" />
+                            <TextBlock Text="—" VerticalAlignment="Center" Margin="4,0"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                            <DatePicker Width="120" SelectedDate="{Binding CustomFilterEnd}"
+                                        VerticalAlignment="Center" />
+                            <Button Content="筛选" Padding="8,4" Margin="6,0,0,0"
+                                    Style="{StaticResource SidebarButtonStyle}" FontSize="12"
+                                    Command="{Binding FilterByDayCommand}" />
+                        </WrapPanel>
+                    </Border>
                     <!-- Task Overview -->
-                    <Border Grid.Column="1" Background="{DynamicResource ListItemBrush}" CornerRadius="8" Padding="10">
+                    <Border Background="{DynamicResource ListItemBrush}" CornerRadius="8" Padding="10">
                         <StackPanel>
                             <TextBlock Text="任务总览" FontWeight="SemiBold" FontSize="12"
                                        Margin="0,0,0,6" Foreground="{DynamicResource PrimaryTextBrush}" />
-                            <ListBox ItemsSource="{Binding FilteredTasks}" BorderThickness="0"
-                                     Background="Transparent" MaxHeight="160"
+                            <ListBox ItemsSource="{Binding FilteredTasks}"
+                                     SelectedItem="{Binding SelectedTask}" BorderThickness="0"
+                                     Background="Transparent" MaxHeight="140"
                                      ScrollViewer.VerticalScrollBarVisibility="Auto">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
@@ -279,7 +303,7 @@
                             </ListBox>
                         </StackPanel>
                     </Border>
-                </Grid>
+                </StackPanel>
 
                 <!-- Action Bar -->
                 <WrapPanel x:Name="ActionBar">
@@ -301,6 +325,7 @@
 
         <!-- Task List -->
         <Border Grid.Row="2" Style="{StaticResource CardStyle}">
+            <Grid>
             <ListView x:Name="TaskBoardListView" ItemsSource="{Binding FilteredTasks}"
                       SelectedItem="{Binding SelectedTask}"
                       BorderThickness="0"
@@ -309,7 +334,7 @@
                       VirtualizingStackPanel.IsVirtualizing="False">
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Border Padding="18" Margin="0,0,0,14" CornerRadius="10">
+                        <Border Margin="0,0,0,10" CornerRadius="8">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Background" Value="{DynamicResource ListItemBrush}" />
@@ -322,9 +347,19 @@
                             </Border.Style>
                             <Grid>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
+                                <!-- Left accent strip for urgent tasks -->
+                                <Border Grid.Column="0" Width="4" CornerRadius="2,0,0,2"
+                                        Visibility="{Binding IsUrgent, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Background="#FF4444" />
+                                <Grid Grid.Column="1" Margin="14,14,14,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
@@ -481,11 +516,35 @@
                                            VerticalAlignment="Center">
                                     <Run Text="🔴 紧急" />
                                 </TextBlock>
+                                </Grid>
                             </Grid>
                         </Border>
                     </DataTemplate>
                 </ListView.ItemTemplate>
-            </ListView>
+                </ListView>
+                <!-- Empty state -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,40"
+                            Visibility="Collapsed">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding FilteredTasks.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="📋" FontSize="48" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12" />
+                    <TextBlock Text="暂无任务" FontSize="16" FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,4" />
+                    <TextBlock Text="点击「➕ 添加」开始创建任务吧"
+                               FontSize="13" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Calendar Modal Overlay -->
@@ -494,7 +553,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <!-- Semi-transparent backdrop -->
-            <Border Background="#80000000" />
+            <Border Background="Transparent" />
             <!-- Calendar Panel -->
             <Border Background="{DynamicResource CardBrush}" CornerRadius="16" Padding="20"
                     HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="320" MaxWidth="400">
