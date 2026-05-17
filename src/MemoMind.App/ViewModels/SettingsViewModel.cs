@@ -19,6 +19,7 @@ public class SettingsViewModel : ViewModelBase
     private readonly IAppSettingsStore settingsStore;
     private MainViewModel? mainViewModel;
     private string apiKey = string.Empty;
+    private bool isApiKeyVisible;
     private string aiBaseUrl = "https://api.openai.com/v1";
     private string aiModel = "deepseek-v4-flash";
     private string aiPersona = DefaultAiPersona;
@@ -68,19 +69,39 @@ public class SettingsViewModel : ViewModelBase
         ResetCyberPlantCommand = new RelayCommand(_ => ResetCyberPlant());
         ClearDatabaseCommand = new RelayCommand(_ => ClearDatabase());
         BrowseSoundCommand = new RelayCommand(_ => BrowseSoundFile());
+        ToggleApiKeyVisibilityCommand = new RelayCommand(_ => ToggleApiKeyVisibility());
         _ = LoadAsync();
     }
 
-    public string ApiKey
+    public string ApiKeyDisplayText
     {
-        get => apiKey;
+        get => isApiKeyVisible ? apiKey : MaskApiKey(apiKey);
         set
         {
-            apiKey = value;
+            apiKey = value ?? string.Empty;
             OnPropertyChanged();
             isDirty = true;
         }
     }
+
+    public bool IsApiKeyVisible
+    {
+        get => isApiKeyVisible;
+        set
+        {
+            isApiKeyVisible = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ApiKeyDisplayText));
+            OnPropertyChanged(nameof(ApiKeyToggleText));
+            OnPropertyChanged(nameof(IsApiKeyReadOnly));
+        }
+    }
+
+    public string ApiKeyToggleText => isApiKeyVisible ? "隐藏" : "显示";
+
+    public bool IsApiKeyReadOnly => !isApiKeyVisible;
+
+    public ICommand ToggleApiKeyVisibilityCommand { get; }
 
     public string AiBaseUrl
     {
@@ -319,7 +340,11 @@ public class SettingsViewModel : ViewModelBase
     private async Task LoadAsync()
     {
         var settings = await settingsStore.LoadAsync();
-        ApiKey = settings.ApiKey;
+        apiKey = settings.ApiKey;
+        isApiKeyVisible = false;
+        OnPropertyChanged(nameof(ApiKeyDisplayText));
+        OnPropertyChanged(nameof(IsApiKeyVisible));
+        OnPropertyChanged(nameof(ApiKeyToggleText));
         AiBaseUrl = string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl;
         AiModel = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-v4-flash" : settings.AiModel;
         AiPersona = string.IsNullOrWhiteSpace(settings.AiPersona) ? DefaultAiPersona : settings.AiPersona;
@@ -397,7 +422,7 @@ public class SettingsViewModel : ViewModelBase
 
         var settings = new UserSettings
         {
-            ApiKey = ApiKey,
+            ApiKey = apiKey,
             AiBaseUrl = AiBaseUrl,
             AiModel = AiModel,
             AiPersona = AiPersona,
@@ -847,6 +872,19 @@ public class SettingsViewModel : ViewModelBase
                 settingsAwareViewModel.ApplySettings(settings);
             }
         }
+    }
+
+    private void ToggleApiKeyVisibility()
+    {
+        IsApiKeyVisible = !IsApiKeyVisible;
+    }
+
+    private static string MaskApiKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key) || key.Length <= 4)
+            return key;
+
+        return new string('●', Math.Min(key.Length - 4, 12)) + key[^4..];
     }
 
     private void BrowseSoundFile()

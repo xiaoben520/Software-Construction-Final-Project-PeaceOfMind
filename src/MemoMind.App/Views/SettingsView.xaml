@@ -68,8 +68,19 @@
                              Text="{Binding AiBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="API Key" />
-                    <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
-                             Text="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged}" />
+                    <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Padding="10,6"
+                                 Text="{Binding ApiKeyDisplayText, UpdateSourceTrigger=PropertyChanged}"
+                                 IsReadOnly="{Binding IsApiKeyReadOnly}" />
+                        <Button Grid.Column="1" Content="{Binding ApiKeyToggleText}" Width="50" Height="28"
+                                Margin="6,0,0,0"
+                                Style="{StaticResource SidebarButtonStyle}" FontSize="12"
+                                Command="{Binding ToggleApiKeyVisibilityCommand}" />
+                    </Grid>
 
                     <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Top" Text="AI 人设" />
                     <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" Padding="10,6" Height="90"
