@@ -24,6 +24,8 @@ public class TaskBoardViewModel : ViewModelBase
     private string currentTime = DateTime.Now.ToString("HH:mm");
     private string statusFilter = "全部";
     private bool isFilterVisible;
+    private DateTime? customFilterStart;
+    private DateTime? customFilterEnd;
     private bool isCreatePanelVisible;
     private bool isCalendarVisible;
     private DateTime calendarMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
@@ -70,6 +72,9 @@ public class TaskBoardViewModel : ViewModelBase
         ToggleCreatePanelCommand = new RelayCommand(_ => ToggleCreatePanel());
         ToggleFilterCommand = new RelayCommand(_ => ToggleFilter());
         FilterCommand = new RelayCommand(p => ApplyFilter(p?.ToString() ?? "全部"));
+        FilterByDayCommand = new RelayCommand(p => ApplyDateFilter(p?.ToString()));
+        FilterByWeekCommand = new RelayCommand(_ => ApplyWeekFilter());
+        FilterByMonthCommand = new RelayCommand(_ => ApplyMonthFilter());
         OpenCalendarCommand = new RelayCommand(_ => OpenCalendar());
         CloseCalendarCommand = new RelayCommand(_ => CloseCalendar());
         SelectCalendarDayCommand = new RelayCommand(p => SelectCalendarDay(p));
@@ -284,6 +289,9 @@ public class TaskBoardViewModel : ViewModelBase
     public ICommand ToggleCreatePanelCommand { get; }
     public ICommand ToggleFilterCommand { get; }
     public ICommand FilterCommand { get; }
+    public ICommand FilterByDayCommand { get; }
+    public ICommand FilterByWeekCommand { get; }
+    public ICommand FilterByMonthCommand { get; }
     public ICommand OpenCalendarCommand { get; }
     public ICommand CloseCalendarCommand { get; }
     public ICommand SelectCalendarDayCommand { get; }
@@ -302,6 +310,18 @@ public class TaskBoardViewModel : ViewModelBase
     {
         get => isFilterVisible;
         set { isFilterVisible = value; OnPropertyChanged(); }
+    }
+
+    public DateTime? CustomFilterStart
+    {
+        get => customFilterStart;
+        set { customFilterStart = value; OnPropertyChanged(); }
+    }
+
+    public DateTime? CustomFilterEnd
+    {
+        get => customFilterEnd;
+        set { customFilterEnd = value; OnPropertyChanged(); }
     }
 
     public bool IsCalendarVisible
@@ -576,6 +596,7 @@ public class TaskBoardViewModel : ViewModelBase
 
     private void OpenCalendar()
     {
+        if (IsFilterVisible) IsFilterVisible = false;
         calendarMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
         BuildCalendar();
         OnPropertyChanged(nameof(CalendarTitle));
@@ -587,6 +608,10 @@ public class TaskBoardViewModel : ViewModelBase
         IsCalendarVisible = false;
         IsEventInputVisible = false;
         selectedCalendarDate = null;
+        CustomFilterStart = null;
+        CustomFilterEnd = null;
+        StatusFilter = "全部";
+        ApplyFilter();
     }
 
     private void SelectCalendarDay(object? parameter)
@@ -596,6 +621,11 @@ public class TaskBoardViewModel : ViewModelBase
         foreach (var d in calendarDays) d.IsSelected = false;
         day.IsSelected = true;
         (ShowEventInputCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
+        StatusFilter = "全部";
+        CustomFilterStart = day.Date.Date;
+        CustomFilterEnd = day.Date.Date.AddDays(1).AddTicks(-1);
+        ApplyFilter();
     }
 
     private void ShowEventInput()
@@ -699,9 +729,46 @@ public class TaskBoardViewModel : ViewModelBase
         }
     }
 
+    private void ApplyDateFilter(string? mode = null)
+    {
+        if (mode == "today")
+        {
+            var today = DateTime.Today;
+            CustomFilterStart = today;
+            CustomFilterEnd = today.AddDays(1).AddTicks(-1);
+        }
+        else if (CustomFilterStart.HasValue && CustomFilterEnd.HasValue)
+        {
+        }
+        else return;
+        ApplyFilter();
+    }
+
+    private void ApplyWeekFilter()
+    {
+        var today = DateTime.Today;
+        var diff = (int)today.DayOfWeek;
+        CustomFilterStart = today.AddDays(-diff);
+        CustomFilterEnd = CustomFilterStart.Value.AddDays(7).AddTicks(-1);
+        ApplyFilter();
+    }
+
+    private void ApplyMonthFilter()
+    {
+        var today = DateTime.Today;
+        CustomFilterStart = new DateTime(today.Year, today.Month, 1);
+        CustomFilterEnd = CustomFilterStart.Value.AddMonths(1).AddTicks(-1);
+        ApplyFilter();
+    }
+
     private void ApplyFilter(string? status = null)
     {
-        if (status is not null) StatusFilter = status;
+        if (status is not null)
+        {
+            StatusFilter = status;
+            CustomFilterStart = null;
+            CustomFilterEnd = null;
+        }
         var filtered = StatusFilter switch
         {
             "Todo" => Tasks.Where(t => t.Status == "Todo"),
@@ -709,6 +776,20 @@ public class TaskBoardViewModel : ViewModelBase
             "Done" => Tasks.Where(t => t.Status == "Done"),
             _ => Tasks.AsEnumerable()
         };
+
+        if (CustomFilterStart.HasValue && CustomFilterEnd.HasValue)
+        {
+            var selectedDay = CustomFilterStart.Value;
+            filtered = filtered.Where(t =>
+            {
+                if (!t.StartDate.HasValue && !t.DueDate.HasValue) return false;
+                if (t.StartDate.HasValue && t.DueDate.HasValue)
+                    return t.StartDate <= selectedDay && t.DueDate >= selectedDay;
+                if (t.StartDate.HasValue)
+                    return (DateTime)t.StartDate <= selectedDay;
+                return (DateTime)t.DueDate! >= selectedDay;
+            });
+        }
 
         FilteredTasks.Clear();
         foreach (var task in filtered
