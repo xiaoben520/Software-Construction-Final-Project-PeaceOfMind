@@ -29,8 +29,35 @@ public class TaskService : ITaskService
 
     public async Task UpdateAsync(TaskItem taskItem)
     {
-        dbContext.Tasks.Update(taskItem);
-        await dbContext.SaveChangesAsync();
+        try
+        {
+            var entry = dbContext.Entry(taskItem);
+            LogDiagnostic("TaskService.UpdateAsync", $"Entity state before Update: {entry.State}, IsUrgent={taskItem.IsUrgent}, Id={taskItem.Id}");
+            dbContext.Tasks.Update(taskItem);
+            LogDiagnostic("TaskService.UpdateAsync", $"Entity state after Update: {entry.State}");
+            await dbContext.SaveChangesAsync();
+            LogDiagnostic("TaskService.UpdateAsync", $"SaveChangesAsync completed. IsUrgent={taskItem.IsUrgent}");
+        }
+        catch (Exception ex)
+        {
+            LogDiagnostic("TaskService.UpdateAsync", $"EXCEPTION: {ex.GetType().Name}: {ex.Message}");
+            throw;
+        }
+    }
+
+    private static readonly string LogPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MemoMind", "agent_diag.log");
+
+    private static void LogDiagnostic(string method, string message)
+    {
+        try
+        {
+            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MemoMind");
+            Directory.CreateDirectory(dir);
+            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{method}] {message}\n";
+            File.AppendAllText(LogPath, line);
+        }
+        catch { }
     }
 
     public async Task DeleteAsync(int id)

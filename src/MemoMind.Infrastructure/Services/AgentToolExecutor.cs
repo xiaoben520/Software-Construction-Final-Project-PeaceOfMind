@@ -42,6 +42,24 @@ public class AgentToolExecutor : IAgentToolExecutor
 
     private record PlantOverrideDto(string PlantId, string? Name, string? Personality, string? SystemPrompt, bool IsDeleted);
 
+    private static readonly string TimerCommandPath = Path.Combine(DataFolder, "timer_command.json");
+
+    private class TimerCommand
+    {
+        public string Action { get; set; } = "";
+        public int WorkMinutes { get; set; }
+        public int BreakMinutes { get; set; }
+        public int Cycles { get; set; }
+        public int Hours { get; set; }
+        public int Minutes { get; set; }
+        public int Seconds { get; set; }
+        public string? Name { get; set; }
+        public int Hour { get; set; }
+        public int Minute { get; set; }
+        public string? Message { get; set; }
+        public string? RepeatMode { get; set; }
+    }
+
     public AgentToolExecutor(ITaskService taskService, ICustomPlantService customPlantService)
     {
         this.taskService = taskService;
@@ -60,6 +78,9 @@ public class AgentToolExecutor : IAgentToolExecutor
             "check_plant_status" => await CheckPlantStatusAsync(argumentsJson),
             "switch_plant" => await SwitchPlantAsync(argumentsJson),
             "list_plants" => await ListPlantsAsync(),
+            "start_pomodoro" => await StartPomodoroAsync(argumentsJson),
+            "start_countdown" => await StartCountdownAsync(argumentsJson),
+            "set_alarm" => await SetAlarmAsync(argumentsJson),
             _ => $"未知操作：{functionName}"
         };
     }
@@ -75,7 +96,7 @@ public class AgentToolExecutor : IAgentToolExecutor
 
             var title = GetStringProperty(root, "title") ?? "未命名任务";
             var description = GetStringProperty(root, "description") ?? "";
-            var isUrgent = GetBoolProperty(root, "is_urgent");
+            var isUrgent = GetBoolOrStringProperty(root, "is_urgent") ?? false;
 
             DateTime? startDate = null;
             if (root.TryGetProperty("start_date", out var sd) && sd.ValueKind == JsonValueKind.String)
@@ -189,17 +210,20 @@ public class AgentToolExecutor : IAgentToolExecutor
 
             if (target is null)
             {
-                return $"未找到标题包含「{title}」的任务。请先用 list_tasks 查看所有任务。";
+                var allTitles = string.Join("、", tasks.Select(t => t.Title));
+                return $"未找到标题包含「{title}」的任务。当前任务：{allTitles}。";
             }
 
             var newTitle = GetStringProperty(root, "new_title");
             var newDescription = GetStringProperty(root, "description");
             var newStatus = GetStringProperty(root, "status");
-            var isUrgentStr = GetStringProperty(root, "is_urgent");
+            var isUrgent = GetBoolOrStringProperty(root, "is_urgent");
             var startDateStr = GetStringProperty(root, "start_date");
             var dueDateStr = GetStringProperty(root, "due_date");
             var estimatedHours = GetIntProperty(root, "estimated_hours");
             var estimatedMinutes = GetIntProperty(root, "estimated_minutes");
+
+            LogDiagnostic("UpdateTaskAsync", $"args={argsJson}, target.Title={target.Title}, target.IsUrgent={target.IsUrgent}, isUrgent parsed={isUrgent?.ToString() ?? "null"}, isUrgent kind={GetJsonKind(root, "is_urgent")}");
 
             var changes = new List<string>();
 
@@ -235,13 +259,10 @@ public class AgentToolExecutor : IAgentToolExecutor
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(isUrgentStr) && bool.TryParse(isUrgentStr, out var urgent))
+            if (isUrgent.HasValue && isUrgent.Value != target.IsUrgent)
             {
-                if (urgent != target.IsUrgent)
-                {
-                    target.IsUrgent = urgent;
-                    changes.Add(urgent ? "标记为紧急" : "取消紧急标记");
-                }
+                target.IsUrgent = isUrgent.Value;
+                changes.Add(isUrgent.Value ? "标记为紧急" : "取消紧急标记");
             }
 
             if (!string.IsNullOrWhiteSpace(startDateStr) && DateTime.TryParse(startDateStr, out var newStart))
@@ -279,11 +300,14 @@ public class AgentToolExecutor : IAgentToolExecutor
                 return $"任务「{target.Title}」没有需要更新的内容。";
             }
 
+            LogDiagnostic("UpdateTaskAsync", $"About to save: target.IsUrgent={target.IsUrgent}, changes={string.Join(",", changes)}");
             await taskService.UpdateAsync(target);
+            LogDiagnostic("UpdateTaskAsync", $"Save completed. Verifying: target.IsUrgent={target.IsUrgent}");
             return $"任务「{target.Title}」已更新：{string.Join("，", changes)}。";
         }
         catch (Exception ex)
         {
+            LogDiagnostic("UpdateTaskAsync", $"EXCEPTION: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             return $"更新任务失败：{ex.Message}";
         }
     }
@@ -993,6 +1017,140 @@ public class AgentToolExecutor : IAgentToolExecutor
         };
     }
 
+    // ===================== Timer Tools =====================
+
+    private static async Task<string> StartPomodoroAsync(string argsJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(argsJson);
+            var root = doc.RootElement;
+
+            var workMinutes = GetIntProperty(root, "work_minutes");
+            var breakMinutes = GetIntProperty(root, "break_minutes");
+            var cycles = GetIntProperty(root, "cycles");
+
+            var command = new TimerCommand
+            {
+                Action = "start_pomodoro",
+                WorkMinutes = workMinutes > 0 ? workMinutes : 0,
+                BreakMinutes = breakMinutes > 0 ? breakMinutes : 0,
+                Cycles = cycles > 0 ? cycles : 0
+            };
+
+            WriteTimerCommand(command);
+
+            var parts = new List<string>();
+            if (workMinutes > 0) parts.Add($"工作 {workMinutes} 分钟");
+            if (breakMinutes > 0) parts.Add($"休息 {breakMinutes} 分钟");
+            if (cycles > 0) parts.Add($"共 {cycles} 轮");
+            var details = parts.Count > 0 ? "（" + string.Join("，", parts) + "）" : "（使用当前设置）";
+
+            return $"番茄钟已启动{details}。你可以在番茄钟页面查看进度。";
+        }
+        catch (Exception ex)
+        {
+            return $"启动番茄钟失败：{ex.Message}";
+        }
+    }
+
+    private static async Task<string> StartCountdownAsync(string argsJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(argsJson);
+            var root = doc.RootElement;
+
+            var hours = GetIntProperty(root, "hours");
+            var minutes = GetIntProperty(root, "minutes");
+            var seconds = GetIntProperty(root, "seconds");
+
+            if (hours <= 0 && minutes <= 0 && seconds <= 0)
+            {
+                return "请至少指定一个大于0的时间。例如：10分钟、1小时30分钟、45秒。";
+            }
+
+            var command = new TimerCommand
+            {
+                Action = "start_countdown",
+                Hours = hours,
+                Minutes = minutes,
+                Seconds = seconds
+            };
+
+            WriteTimerCommand(command);
+
+            var timeParts = new List<string>();
+            if (hours > 0) timeParts.Add($"{hours}小时");
+            if (minutes > 0) timeParts.Add($"{minutes}分钟");
+            if (seconds > 0) timeParts.Add($"{seconds}秒");
+            return $"倒计时 {string.Join("", timeParts)} 已启动。你可以在番茄钟页面查看进度。";
+        }
+        catch (Exception ex)
+        {
+            return $"启动倒计时失败：{ex.Message}";
+        }
+    }
+
+    private static async Task<string> SetAlarmAsync(string argsJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(argsJson);
+            var root = doc.RootElement;
+
+            var name = GetStringProperty(root, "name") ?? "闹钟";
+            var hour = GetIntProperty(root, "hour");
+            var minute = GetIntProperty(root, "minute");
+            var message = GetStringProperty(root, "message") ?? "";
+            var repeatMode = GetStringProperty(root, "repeat_mode")?.ToLowerInvariant();
+
+            if (hour < 0 || hour > 23 || minute < 0 || minute > 59)
+            {
+                return "小时应在 0-23 之间，分钟应在 0-59 之间。";
+            }
+
+            var command = new TimerCommand
+            {
+                Action = "set_alarm",
+                Name = name,
+                Hour = hour,
+                Minute = minute,
+                Message = message,
+                RepeatMode = repeatMode
+            };
+
+            WriteTimerCommand(command);
+
+            var repeatText = repeatMode switch
+            {
+                "daily" => "，每天重复",
+                "weekly" => "，每周重复",
+                _ => ""
+            };
+            var messageText = string.IsNullOrWhiteSpace(message) ? "" : $"，备注「{message}」";
+            return $"闹钟「{name}」已设置：{hour:D2}:{minute:D2}{repeatText}{messageText}。";
+        }
+        catch (Exception ex)
+        {
+            return $"设置闹钟失败：{ex.Message}";
+        }
+    }
+
+    private static void WriteTimerCommand(TimerCommand command)
+    {
+        try
+        {
+            Directory.CreateDirectory(DataFolder);
+            var json = JsonSerializer.Serialize(command, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(TimerCommandPath, json);
+        }
+        catch
+        {
+            // Silently fail — ViewModel will pick up command when file is accessible
+        }
+    }
+
     // ===================== Tool Definitions =====================
 
     public static IReadOnlyList<ToolDefinition> GetAvailableTools()
@@ -1055,7 +1213,7 @@ public class AgentToolExecutor : IAgentToolExecutor
                             new_title = new { type = "string", description = "新标题，如果不改则不传" },
                             description = new { type = "string", description = "新描述/内容，如果不改则不传" },
                             status = new { type = "string", description = "新状态：todo/待办, doing/进行中, done/已完成" },
-                            is_urgent = new { type = "string", description = "是否紧急：true/false" },
+                            is_urgent = new { type = "boolean", description = "是否紧急" },
                             start_date = new { type = "string", description = "新的开始日期，格式 yyyy-MM-dd HH:mm，如果不改则不传" },
                             due_date = new { type = "string", description = "新的截止日期，格式 yyyy-MM-dd HH:mm，如果不改则不传" },
                             estimated_hours = new { type = "integer", description = "预计小时数，如果不改则不传" },
@@ -1154,6 +1312,70 @@ public class AgentToolExecutor : IAgentToolExecutor
                         required = Array.Empty<string>()
                     }
                 }
+            },
+
+            // ---- Timer tools ----
+            new ToolDefinition
+            {
+                Type = "function",
+                Function = new FunctionDefinition
+                {
+                    Name = "start_pomodoro",
+                    Description = "启动一个番茄钟。当用户说'开始番茄钟'、'帮我开始一个25分钟的番茄钟'、'开始专注'、'启动番茄'等时调用。从用户的话中提取工作时长、休息时长、轮数。",
+                    Parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            work_minutes = new { type = "integer", description = "每轮工作时长（分钟），如 25、30。如果用户没有指定则不传，使用当前设置。" },
+                            break_minutes = new { type = "integer", description = "每轮休息时长（分钟），如 5、10。如果用户没有指定则不传。" },
+                            cycles = new { type = "integer", description = "循环轮数，如 4。如果用户没有指定则不传。" }
+                        },
+                        required = Array.Empty<string>()
+                    }
+                }
+            },
+            new ToolDefinition
+            {
+                Type = "function",
+                Function = new FunctionDefinition
+                {
+                    Name = "start_countdown",
+                    Description = "启动一个倒计时。当用户说'帮我倒计时'、'倒计时10分钟'、'计时半小时'、'帮我计个时'等时调用。从用户的话中提取小时、分钟、秒数。",
+                    Parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            hours = new { type = "integer", description = "小时数，如 1。如果用户没有指定则不传，默认0。" },
+                            minutes = new { type = "integer", description = "分钟数，如 10、30。如果用户没有指定则不传，默认0。" },
+                            seconds = new { type = "integer", description = "秒数，如 45。如果用户没有指定则不传，默认0。" }
+                        },
+                        required = Array.Empty<string>()
+                    }
+                }
+            },
+            new ToolDefinition
+            {
+                Type = "function",
+                Function = new FunctionDefinition
+                {
+                    Name = "set_alarm",
+                    Description = "设置一个闹钟。当用户说'设个闹钟'、'帮我设一个下午3点的闹钟'、'提醒我'、'定个闹铃'等时调用。从用户的话中提取闹钟名称、时间（小时、分钟）、备注信息、重复方式。",
+                    Parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            name = new { type = "string", description = "闹钟名称，如'上课提醒'、'休息闹钟'。如果用户没有提供则默认为'闹钟'。" },
+                            hour = new { type = "integer", description = "小时（0-23），如 15 表示下午3点。从用户的话中提取。" },
+                            minute = new { type = "integer", description = "分钟（0-59），如 30。如果用户没有指定则默认为0。" },
+                            message = new { type = "string", description = "闹钟备注信息，如果用户没有提供则不传。" },
+                            repeat_mode = new { type = "string", description = "重复方式：once（一次）、daily（每天）、weekly（每周）。如果用户没有指定则默认为once。" }
+                        },
+                        required = new[] { "hour", "minute" }
+                    }
+                }
             }
         };
     }
@@ -1178,6 +1400,24 @@ public class AgentToolExecutor : IAgentToolExecutor
         return false;
     }
 
+    private static bool? GetBoolOrStringProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var prop))
+            return null;
+
+        if (prop.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            return prop.GetBoolean();
+
+        if (prop.ValueKind == JsonValueKind.String)
+        {
+            var s = prop.GetString();
+            if (bool.TryParse(s, out var result))
+                return result;
+        }
+
+        return null;
+    }
+
     private static int GetIntProperty(JsonElement element, string name)
     {
         if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Number)
@@ -1186,5 +1426,25 @@ public class AgentToolExecutor : IAgentToolExecutor
                 return value;
         }
         return 0;
+    }
+
+    private static string GetJsonKind(JsonElement element, string name)
+    {
+        if (element.TryGetProperty(name, out var prop))
+            return prop.ValueKind.ToString();
+        return "missing";
+    }
+
+    private static readonly string LogPath = Path.Combine(DataFolder, "agent_diag.log");
+
+    private static void LogDiagnostic(string method, string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(DataFolder);
+            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{method}] {message}\n";
+            File.AppendAllText(LogPath, line);
+        }
+        catch { }
     }
 }
