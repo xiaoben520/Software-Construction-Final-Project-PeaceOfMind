@@ -21,7 +21,7 @@ ProjectAssetsFile=<PATH>obj/project.assets.json
 RootNamespace=MemoMind.App
 RunAnalyzers=
 RunAnalyzersDuringLiveAnalysis=
-SolutionPath=<PATH>../../MemoMind.sln
+SolutionPath=*Undefined*
 TargetFrameworkIdentifier=.NETCoreApp
 TargetPath=<PATH>bin/Debug/net8.0-windows/MemoMind.App.dll
 TargetRefPath=<PATH>obj/Debug/net8.0-windows/ref/MemoMind.App.dll
@@ -97,6 +97,7 @@ obj/Debug/net8.0-windows/
   SettingsView.g.cs
   TaskBoardView.g.cs
 Services/
+ ApiKeyProtection.cs
  ChatService.cs
  FileWorkspaceStateService.cs
  IAppSettingsStore.cs
