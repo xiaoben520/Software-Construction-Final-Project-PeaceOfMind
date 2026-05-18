@@ -135,6 +135,11 @@ public class ChatService : IChatService
                           "- check_plant_status: 查看植物当前状态（参数：plant_type选填）\n" +
                           "- switch_plant: 切换到另一株植物（参数：plant_type必填，可以是中文名如'仙人掌'或英文id如'cactus'）\n" +
                           "- list_plants: 列出所有可用植物\n" +
+                          "\n## 计时与闹钟工具\n" +
+                          "你可以调用以下函数来帮用户管理时间和闹钟：\n" +
+                          "- start_pomodoro: 启动番茄钟（参数：work_minutes选填, break_minutes选填, cycles选填，不填则使用当前设置）\n" +
+                          "- start_countdown: 启动倒计时（参数：hours选填, minutes选填, seconds选填，须至少指定一个大于0的值）\n" +
+                          "- set_alarm: 设置闹钟（参数：hour必填0-23, minute必填0-59, name选填, message选填, repeat_mode选填once/daily/weekly）\n" +
                           "\n【必须遵守】\n" +
                           "用户说「创建/添加/新建/记一下/帮我安排」任务时 → 你必须调用 create_task\n" +
                           "用户说「查看/列出/有哪些/任务列表」 → 你必须调用 list_tasks\n" +
@@ -144,6 +149,9 @@ public class ChatService : IChatService
                           "用户说「植物怎么样/植物状态/看看植物/还好吗」 → 你必须调用 check_plant_status\n" +
                           "用户说「切换植物/换一棵/换到/去XX那边」 → 你必须调用 switch_plant\n" +
                           "用户说「有哪些植物/植物列表/看看植物」 → 你必须调用 list_plants\n" +
+                          "用户说「开始番茄钟/开始专注/启动番茄/帮我番茄」 → 你必须调用 start_pomodoro\n" +
+                          "用户说「倒计时/计时/帮我计个时」 → 你必须调用 start_countdown\n" +
+                          "用户说「设个闹钟/提醒我/定个闹铃/帮我设一个X点的闹钟」 → 你必须调用 set_alarm\n" +
                           "不要只用文字说「已经帮你做了」却不调用工具！调用工具后根据实际结果回复。" +
                           "如果用户只是在倾诉心情、聊天，则不需要调用工具，正常回复即可。";
 
@@ -151,7 +159,7 @@ public class ChatService : IChatService
             var nativeResult = await CallAiWithToolsAsync(settings, basePrompt, inputText, history, tools);
 
             // If native tools actually executed (not just diagnostics), return
-            var realTools = new[] { "create_task", "list_tasks", "update_task", "delete_task", "care_plant", "check_plant_status", "switch_plant", "list_plants" };
+            var realTools = new[] { "create_task", "list_tasks", "update_task", "delete_task", "care_plant", "check_plant_status", "switch_plant", "list_plants", "start_pomodoro", "start_countdown", "set_alarm" };
             if (nativeResult.ToolResults.Any(tr => realTools.Contains(tr.ToolName)))
                 return nativeResult;
 
@@ -228,6 +236,7 @@ public class ChatService : IChatService
             "action 可选值：\n" +
             "  任务：create_task, list_tasks, update_task, delete_task\n" +
             "  植物：care_plant, check_plant_status, switch_plant, list_plants\n" +
+            "  计时：start_pomodoro, start_countdown, set_alarm\n" +
             "  无操作：none\n" +
             "create_task args: title(必填), description(选填), start_date(选填，格式yyyy-MM-dd HH:mm), due_date(选填，格式yyyy-MM-dd HH:mm), estimated_hours(选填，整数), estimated_minutes(选填，整数), is_urgent(选填，true/false)\n" +
             "update_task args: title(必填，用于查找原任务), new_title(选填), description(选填), status(选填Todo/Doing/Done), is_urgent(选填，true/false), start_date(选填), due_date(选填), estimated_hours(选填), estimated_minutes(选填)\n" +
@@ -237,6 +246,9 @@ public class ChatService : IChatService
             "check_plant_status args: plant_type(选填)\n" +
             "switch_plant args: plant_type(必填，植物中文名或英文id)\n" +
             "list_plants args: {}\n" +
+            "start_pomodoro args: work_minutes(选填), break_minutes(选填), cycles(选填)\n" +
+            "start_countdown args: hours(选填), minutes(选填), seconds(选填)，须至少一个大于0\n" +
+            "set_alarm args: hour(必填，0-23), minute(必填，0-59), name(选填), message(选填), repeat_mode(选填，once/daily/weekly)\n" +
             "\n【关键规则】\n" +
             "1. 如果用户要求操作任务或照料植物，action 填对应的操作名，args 填从用户消息中提取的真实参数\n" +
             "2. 如果用户只是聊天/倾诉，action 填 \"none\"，args 填 {}\n" +
@@ -741,8 +753,11 @@ public class ChatService : IChatService
         var plantKeywords = new[] { "浇水", "施肥", "晒太阳", "照顾植物", "浇花", "浇一下",
                                     "植物", "仙人掌", "向日葵", "薄荷", "蕨类", "竹子",
                                     "切换", "换一棵", "plant", "care" };
+        var timerKeywords = new[] { "番茄钟", "番茄", "专注", "倒计时", "计时", "计个时",
+                                    "闹钟", "闹铃", "提醒我", "设个", "定个", "timer", "alarm", "pomodoro" };
         return taskKeywords.Any(k => input.Contains(k, StringComparison.OrdinalIgnoreCase))
-            || plantKeywords.Any(k => input.Contains(k, StringComparison.OrdinalIgnoreCase));
+            || plantKeywords.Any(k => input.Contains(k, StringComparison.OrdinalIgnoreCase))
+            || timerKeywords.Any(k => input.Contains(k, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string BuildMemoryAugmentedPrompt(IReadOnlyList<string> memories)
