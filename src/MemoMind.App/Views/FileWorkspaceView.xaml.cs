@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using MemoMind.App.Models;
 using MemoMind.App.ViewModels;
 
@@ -93,5 +94,41 @@ public partial class FileWorkspaceView : UserControl
             ViewModel!.SelectedRecentFile = entry;
             ViewModel.RemoveRecentFileCommand.Execute(null);
         }
+    }
+
+    private void InnerControl_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is DependencyObject depObj)
+        {
+            var innerScrollViewer = FindVisualChild<ScrollViewer>(depObj);
+            if (innerScrollViewer != null)
+            {
+                if ((e.Delta > 0 && innerScrollViewer.VerticalOffset > 0) ||
+                    (e.Delta < 0 && innerScrollViewer.VerticalOffset < innerScrollViewer.ScrollableHeight))
+                {
+                    // Inner ScrollViewer still has room to scroll — let it handle the event
+                    return;
+                }
+            }
+        }
+
+        // Inner ScrollViewer at boundary or absent — scroll the outer ScrollViewer
+        MainScrollViewer.ScrollToVerticalOffset(MainScrollViewer.VerticalOffset - e.Delta);
+        e.Handled = true;
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild)
+                return typedChild;
+
+            var descendant = FindVisualChild<T>(child);
+            if (descendant != null)
+                return descendant;
+        }
+        return null;
     }
 }
