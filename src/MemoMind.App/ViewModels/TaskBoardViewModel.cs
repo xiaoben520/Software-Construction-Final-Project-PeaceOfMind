@@ -26,6 +26,8 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
     private bool isFilterVisible;
     private DateTime? customFilterStart;
     private DateTime? customFilterEnd;
+    private bool addValidationTriggered;
+    private bool editValidationTriggered;
     private bool isCreatePanelVisible;
     private bool isCalendarVisible;
     private DateTime calendarMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
@@ -59,14 +61,14 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         FilteredTasks = new ObservableCollection<TaskItem>();
         StatusFilterOptions = ["全部", "Todo", "Doing", "Done"];
 
-        AddTaskCommand = new RelayCommand(_ => AddTask(), _ => CanAddTask());
+        AddTaskCommand = new RelayCommand(_ => ValidateAndAddTask());
         DeleteTaskCommand = new RelayCommand(_ => DeleteTask(), _ => SelectedTask is not null);
         CompleteTaskCommand = new RelayCommand(p => CompleteTask(p as TaskItem));
         StartTaskCommand = new RelayCommand(p => ConfirmStart(p as TaskItem));
         PauseTaskCommand = new RelayCommand(p => PauseTask(p as TaskItem));
         ToggleUrgentCommand = new RelayCommand(_ => ToggleUrgent(), _ => SelectedTask is not null);
         StartEditCommand = new RelayCommand(_ => StartEdit(), _ => SelectedTask is not null);
-        SaveEditCommand = new RelayCommand(_ => SaveEdit(), _ => CanSaveEdit());
+        SaveEditCommand = new RelayCommand(_ => ValidateAndSaveEdit());
         CancelEditCommand = new RelayCommand(_ => CancelEdit());
         CancelCreateCommand = new RelayCommand(_ => CancelCreate());
         ToggleCreatePanelCommand = new RelayCommand(_ => ToggleCreatePanel());
@@ -156,6 +158,11 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
             OnPropertyChanged(nameof(IsUrgentEnabled));
             (AddTaskCommand as RelayCommand)?.RaiseCanExecuteChanged();
             if (!IsUrgentEnabled) NewTaskIsUrgent = false;
+            if (addValidationTriggered)
+            {
+                OnPropertyChanged(nameof(TitleHint));
+                OnPropertyChanged(nameof(IsTitleError));
+            }
         }
     }
 
@@ -168,19 +175,44 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsUrgentEnabled));
             if (!IsUrgentEnabled) NewTaskIsUrgent = false;
+            if (addValidationTriggered)
+            {
+                OnPropertyChanged(nameof(DescriptionHint));
+                OnPropertyChanged(nameof(IsDescriptionError));
+            }
         }
     }
 
     public DateTime? NewTaskStartDate
     {
         get => newTaskStartDate;
-        set { newTaskStartDate = value; OnPropertyChanged(); RaiseAddCanExecuteChanged(); }
+        set
+        {
+            newTaskStartDate = value;
+            OnPropertyChanged();
+            RaiseAddCanExecuteChanged();
+            if (addValidationTriggered)
+            {
+                OnPropertyChanged(nameof(DateHint));
+                OnPropertyChanged(nameof(IsDateError));
+            }
+        }
     }
 
     public DateTime? NewTaskDueDate
     {
         get => newTaskDueDate;
-        set { newTaskDueDate = value; OnPropertyChanged(); RaiseAddCanExecuteChanged(); }
+        set
+        {
+            newTaskDueDate = value;
+            OnPropertyChanged();
+            RaiseAddCanExecuteChanged();
+            if (addValidationTriggered)
+            {
+                OnPropertyChanged(nameof(DateHint));
+                OnPropertyChanged(nameof(IsDateError));
+            }
+        }
     }
 
     public bool NewTaskIsUrgent
@@ -219,25 +251,64 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
     public string EditTitle
     {
         get => editTitle;
-        set { editTitle = value; OnPropertyChanged(); RaiseSaveCanExecuteChanged(); }
+        set
+        {
+            editTitle = value;
+            OnPropertyChanged();
+            RaiseSaveCanExecuteChanged();
+            if (editValidationTriggered)
+            {
+                OnPropertyChanged(nameof(EditTitleHint));
+                OnPropertyChanged(nameof(IsEditTitleError));
+            }
+        }
     }
 
     public string EditDescription
     {
         get => editDescription;
-        set { editDescription = value; OnPropertyChanged(); }
+        set
+        {
+            editDescription = value;
+            OnPropertyChanged();
+            if (editValidationTriggered)
+            {
+                OnPropertyChanged(nameof(EditDescriptionHint));
+                OnPropertyChanged(nameof(IsEditDescriptionError));
+            }
+        }
     }
 
     public DateTime? EditStartDate
     {
         get => editStartDate;
-        set { editStartDate = value; OnPropertyChanged(); RaiseSaveCanExecuteChanged(); }
+        set
+        {
+            editStartDate = value;
+            OnPropertyChanged();
+            RaiseSaveCanExecuteChanged();
+            if (editValidationTriggered)
+            {
+                OnPropertyChanged(nameof(EditDateHint));
+                OnPropertyChanged(nameof(IsEditDateError));
+            }
+        }
     }
 
     public DateTime? EditDueDate
     {
         get => editDueDate;
-        set { editDueDate = value; OnPropertyChanged(); RaiseSaveCanExecuteChanged(); }
+        set
+        {
+            editDueDate = value;
+            OnPropertyChanged();
+            RaiseSaveCanExecuteChanged();
+            if (editValidationTriggered)
+            {
+                OnPropertyChanged(nameof(EditDateHint));
+                OnPropertyChanged(nameof(IsEditDateError));
+            }
+        }
     }
 
     public bool EditIsUrgent
@@ -393,15 +464,92 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
 
     private bool CanAddTask() =>
         !string.IsNullOrWhiteSpace(NewTaskTitle)
-        && (NewTaskStartDate.HasValue || NewTaskDueDate.HasValue)
-        && (NewTaskEstimatedHours > 0 || NewTaskEstimatedMinutes > 0);
+        && (NewTaskStartDate.HasValue || NewTaskDueDate.HasValue);
 
     private bool CanSaveEdit() =>
         !string.IsNullOrWhiteSpace(EditTitle)
-        && (EditStartDate.HasValue || EditDueDate.HasValue)
-        && (EditEstimatedHours > 0 || EditEstimatedMinutes > 0);
+        && (EditStartDate.HasValue || EditDueDate.HasValue);
 
-    private void RaiseAddCanExecuteChanged() => (AddTaskCommand as RelayCommand)?.RaiseCanExecuteChanged();
+    public string TitleHint => addValidationTriggered && string.IsNullOrWhiteSpace(NewTaskTitle) ? "请填写任务名称" : "";
+    public string DescriptionHint => addValidationTriggered && string.IsNullOrWhiteSpace(NewTaskDescription) ? "请填写任务内容" : "";
+    public string DateHint => addValidationTriggered && !NewTaskStartDate.HasValue && !NewTaskDueDate.HasValue ? "请至少填写开始或截止日期" : "";
+
+    public bool IsTitleError => addValidationTriggered && string.IsNullOrWhiteSpace(NewTaskTitle);
+    public bool IsDescriptionError => addValidationTriggered && string.IsNullOrWhiteSpace(NewTaskDescription);
+    public bool IsDateError => addValidationTriggered && !NewTaskStartDate.HasValue && !NewTaskDueDate.HasValue;
+
+    public string EditTitleHint => editValidationTriggered && string.IsNullOrWhiteSpace(EditTitle) ? "请填写任务名称" : "";
+    public string EditDescriptionHint => editValidationTriggered && string.IsNullOrWhiteSpace(EditDescription) ? "请填写任务内容" : "";
+    public string EditDateHint => editValidationTriggered && !EditStartDate.HasValue && !EditDueDate.HasValue ? "请至少填写开始或截止日期" : "";
+
+    public bool IsEditTitleError => editValidationTriggered && string.IsNullOrWhiteSpace(EditTitle);
+    public bool IsEditDescriptionError => editValidationTriggered && string.IsNullOrWhiteSpace(EditDescription);
+    public bool IsEditDateError => editValidationTriggered && !EditStartDate.HasValue && !EditDueDate.HasValue;
+
+    private void ValidateAndAddTask()
+    {
+        if (CanAddTask())
+        {
+            addValidationTriggered = false;
+            RefreshAllValidation();
+            AddTask();
+        }
+        else
+        {
+            addValidationTriggered = true;
+            RefreshAllValidation();
+        }
+    }
+
+    public void RefreshValidation() { if (addValidationTriggered) RefreshAllValidation(); }
+
+    private void ValidateAndSaveEdit()
+    {
+        if (CanSaveEdit())
+        {
+            editValidationTriggered = false;
+            RefreshAllEditValidation();
+            SaveEdit();
+        }
+        else
+        {
+            editValidationTriggered = true;
+            RefreshAllEditValidation();
+        }
+    }
+
+    public void RefreshEditValidation() { if (editValidationTriggered) RefreshAllEditValidation(); }
+
+    private void RefreshAllEditValidation()
+    {
+        OnPropertyChanged(nameof(EditTitleHint));
+        OnPropertyChanged(nameof(EditDescriptionHint));
+        OnPropertyChanged(nameof(EditDateHint));
+        OnPropertyChanged(nameof(IsEditTitleError));
+        OnPropertyChanged(nameof(IsEditDescriptionError));
+        OnPropertyChanged(nameof(IsEditDateError));
+    }
+
+    private void RefreshAllValidation()
+    {
+        OnPropertyChanged(nameof(TitleHint));
+        OnPropertyChanged(nameof(DescriptionHint));
+        OnPropertyChanged(nameof(DateHint));
+        OnPropertyChanged(nameof(IsTitleError));
+        OnPropertyChanged(nameof(IsDescriptionError));
+        OnPropertyChanged(nameof(IsDateError));
+    }
+
+    private void RaiseAddCanExecuteChanged()
+    {
+        (AddTaskCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        if (addValidationTriggered)
+        {
+            OnPropertyChanged(nameof(TitleHint));
+            OnPropertyChanged(nameof(IsTitleError));
+        }
+    }
+
     private void RaiseSaveCanExecuteChanged() => (SaveEditCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
     private async Task LoadTasksAsync()
@@ -499,12 +647,25 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         task.Status = "Doing";
         task.CompletedAt = null;
         task.IsBreakTime = false;
-        task.CountdownPhaseSeconds = totalSeconds;
-        task.CountdownEndTime = DateTime.Now.AddSeconds(totalSeconds);
+        if (totalSeconds > 0)
+        {
+            task.CountdownPhaseSeconds = totalSeconds;
+            task.CountdownEndTime = DateTime.Now.AddSeconds(totalSeconds);
+        }
+        else
+        {
+            task.CountdownPhaseSeconds = 0;
+            task.CountdownEndTime = DateTime.MinValue;
+            task.CountdownProgress = 1.0;
+            task.CountdownStatusText = "进行中";
+            task.CountdownDisplay = "";
+        }
         await taskService.UpdateAsync(task);
         ApplyFilter();
         SelectedTask = task;
-        StatusMessage = $"任务已开工 (预计 {task.EstimatedHours}h{task.EstimatedMinutes:D2}m)。";
+        StatusMessage = totalSeconds > 0
+            ? $"任务已开工 (预计 {task.EstimatedHours}h{task.EstimatedMinutes:D2}m)"
+            : "任务已开工 (无预计时间，手动切换状态)。";
     }
 
     private async void PauseTask(TaskItem? task)
@@ -560,6 +721,7 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         SelectedTask.EstimatedMinutes = EditEstimatedMinutes;
         await taskService.UpdateAsync(SelectedTask);
         IsEditing = false;
+        editValidationTriggered = false;
         EditTitle = string.Empty;
         EditDescription = string.Empty;
         EditStartDate = null;
@@ -575,6 +737,7 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
     private void CancelEdit()
     {
         IsEditing = false;
+        editValidationTriggered = false;
         EditTitle = string.Empty;
         EditDescription = string.Empty;
         EditStartDate = null;
@@ -587,6 +750,7 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
 
     private void CancelCreate()
     {
+        addValidationTriggered = false;
         NewTaskTitle = string.Empty;
         NewTaskDescription = string.Empty;
         NewTaskStartDate = null;
@@ -594,26 +758,29 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
         NewTaskIsUrgent = false;
         NewTaskEstimatedHours = 0;
         NewTaskEstimatedMinutes = 0;
+        RefreshAllValidation();
         IsCreatePanelVisible = false;
     }
 
     private void ToggleCreatePanel()
     {
         if (IsFilterVisible) IsFilterVisible = false;
-        if (IsEditing) IsEditing = false;
+        if (IsEditing) CancelEdit();
         IsCreatePanelVisible = !IsCreatePanelVisible;
     }
 
     private void ToggleFilter()
     {
-        if (IsCreatePanelVisible) IsCreatePanelVisible = false;
-        if (IsEditing) IsEditing = false;
+        if (IsCreatePanelVisible) CancelCreate();
+        if (IsEditing) CancelEdit();
         IsFilterVisible = !IsFilterVisible;
     }
 
     private void OpenCalendar()
     {
         if (IsFilterVisible) IsFilterVisible = false;
+        if (IsCreatePanelVisible) CancelCreate();
+        if (IsEditing) CancelEdit();
         calendarMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
         BuildCalendar();
         OnPropertyChanged(nameof(CalendarTitle));

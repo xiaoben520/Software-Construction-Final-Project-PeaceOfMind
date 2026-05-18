@@ -80,22 +80,66 @@
                         <WrapPanel>
                             <TextBox Width="240" Margin="0,0,10,0" Padding="10,6"
                                      Text="{Binding NewTaskTitle, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource WatermarkTextBoxStyle}" Tag="任务名称" />
+                                     Tag="任务名称">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource WatermarkTextBoxStyle}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsTitleError}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#FF4444" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
                             <TextBox Width="200" Margin="0,0,10,0" Padding="10,6"
                                      Text="{Binding NewTaskDescription, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource WatermarkTextBoxStyle}" Tag="任务内容" />
+                                     Tag="任务内容">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource WatermarkTextBoxStyle}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDescriptionError}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#FF4444" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
                         </WrapPanel>
                         <!-- Start date -->
                         <WrapPanel Margin="0,10,0,0">
                             <TextBlock Text="开始：" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
                                        Margin="0,0,10,0" Foreground="{DynamicResource SecondaryTextBrush}" />
-                            <DatePicker Width="150" SelectedDate="{Binding NewTaskStartDate}" />
+                            <DatePicker Width="150" SelectedDate="{Binding NewTaskStartDate}">
+                                <DatePicker.Style>
+                                    <Style TargetType="DatePicker">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDateError}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#FF4444" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DatePicker.Style>
+                            </DatePicker>
                         </WrapPanel>
                         <!-- End date -->
                         <WrapPanel Margin="0,8,0,0">
                             <TextBlock Text="截止：" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
                                        Margin="0,0,10,0" Foreground="{DynamicResource SecondaryTextBrush}" />
-                            <DatePicker Width="150" SelectedDate="{Binding NewTaskDueDate}" />
+                            <DatePicker Width="150" SelectedDate="{Binding NewTaskDueDate}">
+                                <DatePicker.Style>
+                                    <Style TargetType="DatePicker">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDateError}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#FF4444" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DatePicker.Style>
+                            </DatePicker>
                         </WrapPanel>
                         <!-- Estimated time -->
                         <WrapPanel Margin="0,8,0,0">
@@ -146,28 +190,107 @@
                                     Style="{StaticResource SidebarButtonStyle}"
                                     Command="{Binding CancelCreateCommand}" />
                         </WrapPanel>
+                        <StackPanel Margin="0,8,0,0">
+                            <TextBlock Text="{Binding TitleHint}" FontSize="12" Foreground="#FF4444">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding TitleHint}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding DescriptionHint}" FontSize="12" Foreground="#FF4444">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DescriptionHint}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding DateHint}" FontSize="12" Foreground="#FF4444">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DateHint}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
                     </StackPanel>
                     <!-- Edit Mode -->
                     <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}">
                         <WrapPanel>
                             <TextBox Width="240" Margin="0,0,10,0" Padding="10,6"
                                      Text="{Binding EditTitle, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource WatermarkTextBoxStyle}" Tag="任务名称" />
+                                     Tag="任务名称">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource WatermarkTextBoxStyle}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditTitleError}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#FF4444" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
                             <TextBox Width="200" Margin="0,0,10,0" Padding="10,6"
                                      Text="{Binding EditDescription, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource WatermarkTextBoxStyle}" Tag="任务内容" />
+                                     Tag="任务内容">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource WatermarkTextBoxStyle}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditDescriptionError}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#FF4444" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
                         </WrapPanel>
                         <!-- Start date -->
                         <WrapPanel Margin="0,10,0,0">
                             <TextBlock Text="开始：" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
                                        Margin="0,0,10,0" Foreground="{DynamicResource SecondaryTextBrush}" />
-                            <DatePicker Width="150" SelectedDate="{Binding EditStartDate}" />
+                            <DatePicker Width="150" SelectedDate="{Binding EditStartDate}">
+                                <DatePicker.Style>
+                                    <Style TargetType="DatePicker">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditDateError}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#FF4444" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DatePicker.Style>
+                            </DatePicker>
                         </WrapPanel>
                         <!-- End date -->
                         <WrapPanel Margin="0,8,0,0">
                             <TextBlock Text="截止：" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
                                        Margin="0,0,10,0" Foreground="{DynamicResource SecondaryTextBrush}" />
-                            <DatePicker Width="150" SelectedDate="{Binding EditDueDate}" />
+                            <DatePicker Width="150" SelectedDate="{Binding EditDueDate}">
+                                <DatePicker.Style>
+                                    <Style TargetType="DatePicker">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditDateError}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#FF4444" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DatePicker.Style>
+                            </DatePicker>
                         </WrapPanel>
                         <!-- Estimated time -->
                         <WrapPanel Margin="0,8,0,0">
@@ -220,6 +343,41 @@
                                     Style="{StaticResource SidebarButtonStyle}"
                                     Command="{Binding CancelEditCommand}" />
                         </WrapPanel>
+                        <StackPanel Margin="0,8,0,0">
+                            <TextBlock Text="{Binding EditTitleHint}" FontSize="12" Foreground="#FF4444">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EditTitleHint}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding EditDescriptionHint}" FontSize="12" Foreground="#FF4444">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EditDescriptionHint}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding EditDateHint}" FontSize="12" Foreground="#FF4444">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EditDateHint}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
 
@@ -574,7 +732,7 @@
                     HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="320" MaxWidth="400">
                 <StackPanel>
                     <!-- + button -->
-                    <Button Content="＋" FontSize="18" Padding="6,2" HorizontalAlignment="Right"
+                    <Button Content="添加日程" FontSize="13" Padding="8,4" HorizontalAlignment="Right"
                             Style="{StaticResource SidebarButtonStyle}"
                             Command="{Binding ShowEventInputCommand}" Margin="0,0,0,8" />
                     <!-- Header: prev month + title + next month -->
