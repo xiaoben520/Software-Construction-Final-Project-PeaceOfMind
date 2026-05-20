@@ -48,13 +48,14 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
     private int editEstimatedMinutes;
 
     public TaskBoardViewModel()
-        : this(App.Services.GetRequiredService<ITaskService>())
+        : this(App.Services.GetRequiredService<ITaskService>(), App.Services.GetRequiredService<ITaskChangeNotifier>())
     {
     }
 
-    public TaskBoardViewModel(ITaskService taskService)
+    public TaskBoardViewModel(ITaskService taskService, ITaskChangeNotifier taskChangeNotifier)
     {
         this.taskService = taskService;
+        taskChangeNotifier.TaskChanged += OnAgentTaskChanged;
         Tasks = new ObservableCollection<TaskItem>();
         FilteredTasks = new ObservableCollection<TaskItem>();
         StatusFilterOptions = ["全部", "Todo", "Doing", "Done"];
@@ -423,6 +424,14 @@ public class TaskBoardViewModel : ViewModelBase, IPageLifecycleAware
     {
         taskService.ClearChangeTracker();
         await LoadTasksAsync();
+    }
+
+    private async void OnAgentTaskChanged()
+    {
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+        {
+            await ReloadTasksAsync();
+        });
     }
 
     public async Task OnNavigatedToAsync()
