@@ -6,10 +6,21 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace MemoMind.Infrastructure.Migrations;
 
+/// <summary>
+/// EF Core 数据库迁移：创建 ChatMessages 表。
+///
+/// 表结构：
+/// - Id: INTEGER 主键自增
+/// - Sender: TEXT 发送者名称
+/// - Content: TEXT 消息正文
+/// - Time: TEXT 发送时间（DateTime 在 SQLite 中以文本存储）
+/// - IsUserMessage: INTEGER 布尔值（SQLite 无 native bool 类型）
+/// </summary>
 [DbContext(typeof(AppDbContext))]
 [Migration("202605150001_AddChatMessages")]
 public partial class AddChatMessages : Migration
 {
+    /// <summary>执行迁移：创建 ChatMessages 表</summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.CreateTable(
@@ -29,6 +40,7 @@ public partial class AddChatMessages : Migration
             });
     }
 
+    /// <summary>回滚迁移：删除 ChatMessages 表</summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(name: "ChatMessages");

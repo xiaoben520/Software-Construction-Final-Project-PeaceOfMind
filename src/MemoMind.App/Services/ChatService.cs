@@ -9,14 +9,36 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MemoMind.App.Services;
 
+/// <summary>
+/// AI 聊天服务的核心实现。
+///
+/// 职责：
+/// 1. 封装所有与 AI API（OpenAI 兼容格式）的通信
+/// 2. AI 不可用时提供离线关键词 + 随机温暖回复
+/// 3. 实现 Agent 模式：AI 可调用本地工具（任务、植物、计时器）
+/// 4. 自动从对话中提取长期记忆
+///
+/// 三种回复策略：
+/// - 离线模式：关键词匹配 + 随机回复（AI 未启用或 API 调用失败时）
+/// - 普通聊天：标准 Chat Completions API
+/// - Agent 模式：Function Calling → 工具执行 → 结果反馈 → AI 最终回复
+///   原生 Function Calling 不可用时，回退到 JSON 指令模式
+/// </summary>
 public class ChatService : IChatService
 {
     private readonly IAppSettingsStore settingsStore;
     private readonly HttpClient httpClient;
 
+    /// <summary>
+    /// 默认 AI 人设提示词。用户可在设置中自定义覆盖。
+    /// </summary>
     private static readonly string DefaultPersonaPrompt =
         "你是一个温和、会倾听、会整理事项的 AI 心灵伙伴。说话简洁、友好、有共情，优先帮用户把事情理清。";
 
+    /// <summary>
+    /// 通用离线回复库，当关键词未匹配时随机选取一条。
+    /// 共 20 条，覆盖鼓励、共情、建议等语气。
+    /// </summary>
     private static readonly string[] OfflineResponses =
     [
         "我听到了。先别急，我们可以一件一件来。",
@@ -41,6 +63,10 @@ public class ChatService : IChatService
         "深呼吸，然后我们一起来看看接下来做什么。"
     ];
 
+    /// <summary>
+    /// 系统级提示词，定义 AI 的行为边界和回复风格。
+    /// 会被注入到所有 AI 请求的 system 消息中。
+    /// </summary>
     private static readonly string ChatSystemPrompt =
         "你是一个温和的陪伴助手，名叫MemoMind。你的目标是先共情，再给出轻量建议。" +
         "不要进行诊断，不要进行说教，不要否定用户感受。" +
@@ -48,6 +74,9 @@ public class ChatService : IChatService
         "如果用户表达了负面情绪，先承接情绪再表达理解，最后给出轻量建议。" +
         "如果用户提到了任务或计划，可以添加到其他模块对应的模块，同时温和地帮忙梳理。";
 
+    /// <summary>
+    /// 用于在 Agent 工具执行时创建 DI Scope（ChatService 本身是单例，无法直接注入 Scoped 服务）。
+    /// </summary>
     private readonly IServiceScopeFactory scopeFactory;
 
     public ChatService(IAppSettingsStore settingsStore, IServiceScopeFactory scopeFactory)
@@ -58,11 +87,20 @@ public class ChatService : IChatService
         httpClient.Timeout = TimeSpan.FromSeconds(30);
     }
 
+    // ============================================================
+    // IChatService 实现
+    // ============================================================
+
+    /// <summary>简单对话，使用默认系统提示词。</summary>
     public async Task<string> SendAsync(string inputText)
     {
         return await SendAsync(ChatSystemPrompt, inputText);
     }
 
+    /// <summary>
+    /// 带自定义系统提示词的对话。
+    /// 如果 AI 未启用或 API Key 未配置，返回离线回复。
+    /// </summary>
     public async Task<string> SendAsync(string systemPrompt, string inputText)
     {
         var settings = await settingsStore.LoadAsync();
@@ -82,12 +120,14 @@ public class ChatService : IChatService
         }
     }
 
+    /// <summary>带长期记忆的对话：记忆被拼接到系统提示词中。</summary>
     public async Task<string> SendAsync(string inputText, IReadOnlyList<string> memories)
     {
         var augmentedPrompt = BuildMemoryAugmentedPrompt(memories);
         return await SendAsync(augmentedPrompt, inputText);
     }
 
+    /// <summary>带对话历史上下文的对话，用于保持多轮对话的连贯性。</summary>
     public async Task<string> SendWithContextAsync(string inputText, IReadOnlyList<string> memories, IReadOnlyList<ChatHistoryItem> history)
     {
         var settings = await settingsStore.LoadAsync();
@@ -108,6 +148,16 @@ public class ChatService : IChatService
         }
     }
 
+    /// <summary>
+    /// Agent 模式的主入口。
+    ///
+    /// 策略：
+    /// 1. 优先使用原生 Function Calling（CallAiWithToolsAsync）
+    /// 2. 如果 AI 返回的 tool_calls 中包含真实工具（非 diagnostic），直接返回
+    /// 3. 如果 AI 没调用工具但用户输入是任务相关 → 回退到 JSON 指令模式
+    /// 4. 如果 API 返回 400（不支持 Function Calling）+ 任务相关 → 回退 JSON 模式
+    /// 5. 非任务相关的 400 → 回退到普通聊天
+    /// </summary>
     public async Task<AgentResponse> SendAgentAsync(string inputText, IReadOnlyList<string> memories, IReadOnlyList<ChatHistoryItem> history)
     {
         var settings = await settingsStore.LoadAsync();
@@ -119,10 +169,11 @@ public class ChatService : IChatService
             return result;
         }
 
-        // Try native function calling first
+        // 尝试原生 Function Calling
         try
         {
             var basePrompt = BuildMemoryAugmentedPrompt(memories);
+            // 拼接工具定义和强制调用规则——这是 prompt 工程的核心：明确告诉 AI 何时必须调用工具
             basePrompt += "\n\n## 任务管理工具\n" +
                           "你可以调用以下函数来真正操作任务（不是假装操作）：\n" +
                           "- create_task: 创建新任务（参数：title必填, description选填, start_date选填, due_date选填, estimated_hours选填, estimated_minutes选填, is_urgent选填）\n" +
@@ -158,12 +209,12 @@ public class ChatService : IChatService
             var tools = Infrastructure.Services.AgentToolExecutor.GetAvailableTools();
             var nativeResult = await CallAiWithToolsAsync(settings, basePrompt, inputText, history, tools);
 
-            // If native tools actually executed (not just diagnostics), return
+            // 如果原生工具确实被执行了，直接返回
             var realTools = new[] { "create_task", "list_tasks", "update_task", "delete_task", "care_plant", "check_plant_status", "switch_plant", "list_plants", "start_pomodoro", "start_countdown", "set_alarm" };
             if (nativeResult.ToolResults.Any(tr => realTools.Contains(tr.ToolName)))
                 return nativeResult;
 
-            // If no tools called but user asked for task ops, fall back to text agent
+            // AI 没调用工具但用户可能想要操作任务 → 回退 JSON 指令模式
             if (IsTaskRelatedInput(inputText))
             {
                 try { return await TryTextAgentAsync(settings, memories, inputText, history); }
@@ -181,7 +232,7 @@ public class ChatService : IChatService
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest)
         {
-            // Native function calling not supported — use text-based agent for task ops
+            // 模型不支持 Function Calling → 任务操作回退 JSON 指令模式
             if (IsTaskRelatedInput(inputText))
             {
                 try { return await TryTextAgentAsync(settings, memories, inputText, history); }
@@ -191,7 +242,7 @@ public class ChatService : IChatService
                     return result;
                 }
             }
-            // Non-task chat: regular fallback
+            // 非任务聊天 → 回退到普通聊天
             try
             {
                 var augmentedPrompt = BuildMemoryAugmentedPrompt(memories);
@@ -211,6 +262,18 @@ public class ChatService : IChatService
         }
     }
 
+    // ============================================================
+    // JSON 指令模式回退 (TryTextAgentAsync)
+    // ============================================================
+
+    /// <summary>
+    /// 当原生 Function Calling 不可用时，要求 AI 以 JSON 格式返回操作指令。
+    ///
+    /// 要求格式：
+    /// { "action": "create_task", "args": {...}, "reply": "自然语言回复" }
+    ///
+    /// 流程：构造 JSON 模式 prompt → 调用 AI → 解析 JSON → 执行工具 → 返回结果
+    /// </summary>
     private async Task<AgentResponse> TryTextAgentAsync(
         UserSettings settings,
         IReadOnlyList<string> memories,
@@ -225,6 +288,7 @@ public class ChatService : IChatService
             Success = true
         });
 
+        // 构造 JSON 指令 prompt：明确指定输出格式和所有可用操作
         var basePrompt = BuildMemoryAugmentedPrompt(memories);
         basePrompt += "\n\n## 操作协议（必须严格遵守）\n" +
             "你需要用一个 JSON 对象来回复，格式如下：\n\n" +
@@ -268,7 +332,7 @@ public class ChatService : IChatService
         var cleanedReply = rawReply;
         var jsonStr = rawReply.Trim();
 
-        // Strip markdown code fences if present
+        // 清理 markdown 代码块包裹（模型有时会忽略"不要 markdown"的要求）
         if (jsonStr.StartsWith("```"))
         {
             var start = jsonStr.IndexOf('{');
@@ -286,9 +350,11 @@ public class ChatService : IChatService
             if (root.TryGetProperty("action", out var actionProp))
                 action = actionProp.GetString() ?? "none";
 
+            // 优先使用 AI 生成的 reply 字段作为最终回复
             if (root.TryGetProperty("reply", out var replyProp))
                 cleanedReply = replyProp.GetString() ?? rawReply;
 
+            // 如果 action 不是 none/chat，执行对应的工具
             if (action != "none" && action != "chat")
             {
                 var argsJson = "{}";
@@ -302,6 +368,7 @@ public class ChatService : IChatService
                     Success = true
                 });
 
+                // 通过 ScopeFactory 创建 Scope，获取 Scoped 的 AgentToolExecutor
                 using (var scope = scopeFactory.CreateScope())
                 {
                     var executor = scope.ServiceProvider.GetRequiredService<IAgentToolExecutor>();
@@ -337,12 +404,29 @@ public class ChatService : IChatService
         return new AgentResponse { Reply = cleanedReply, ToolResults = toolResults };
     }
 
+    /// <summary>字符串截断辅助方法，用于诊断日志。</summary>
     private static string Truncate(string text, int maxLen)
     {
         if (string.IsNullOrEmpty(text)) return "(空)";
         return text.Length <= maxLen ? text : text[..maxLen] + "...";
     }
 
+    // ============================================================
+    // 原生 Function Calling (CallAiWithToolsAsync)
+    // ============================================================
+
+    /// <summary>
+    /// 使用 OpenAI 兼容的 Function Calling 协议调用 AI。
+    ///
+    /// 流程：
+    /// 1. 构建 messages（system + history + user），附带 tools 定义
+    /// 2. 发送请求，tool_choice=auto 让 AI 自行决定是否调用工具
+    /// 3. 如果 AI 返回 tool_calls → 本地执行每个工具 → 将结果作为 tool 消息追加
+    ///    → 再次请求 AI 生成最终自然语言回复
+    /// 4. 如果 AI 没有调用工具 → 直接返回文字回复
+    ///
+    /// DeepSeek 特殊处理：模型名需追加 |tools 后缀才能启用 Function Calling。
+    /// </summary>
     private async Task<AgentResponse> CallAiWithToolsAsync(
         UserSettings settings,
         string systemPrompt,
@@ -352,13 +436,14 @@ public class ChatService : IChatService
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
         var model = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-v4-flash" : settings.AiModel;
-        // DeepSeek requires |tools suffix to enable function calling
+        // DeepSeek 的 Function Calling 需要在模型名后追加 |tools 后缀
         if (baseUrl.Contains("deepseek", StringComparison.OrdinalIgnoreCase) && !model.Contains('|'))
         {
             model += "|tools";
         }
         var finalSystemPrompt = BuildSystemPrompt(settings, systemPrompt);
 
+        // 构建完整消息列表：system + 历史对话 + 当前用户输入
         var messages = new List<object>
         {
             new { role = "system", content = finalSystemPrompt }
@@ -379,9 +464,9 @@ public class ChatService : IChatService
             model,
             messages,
             tools,
-            tool_choice = "auto",
+            tool_choice = "auto",     // AI 自行决定是否调用工具
             max_tokens = 500,
-            temperature = 0.2
+            temperature = 0.2         // 低温度以获得更确定的工具调用
         };
 
         var json = JsonSerializer.Serialize(requestBody);
@@ -394,6 +479,7 @@ public class ChatService : IChatService
         var response = await httpClient.SendAsync(request);
         var statusCode = (int)response.StatusCode;
 
+        // API 返回错误 → 返回诊断信息由上层决定回退策略
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync();
@@ -404,10 +490,10 @@ public class ChatService : IChatService
                     Reply = "抱歉，当前模型不支持任务操作。请在设置中切换到支持 Function Calling 的模型。",
                     ToolResults = new[] { new AgentToolResult { ToolName = "diagnostic", Message = diagMsg, Success = false } }
                 };
-            // For non-task chat, fall through to regular chat silently
+            // 非任务聊天 → 静默回退到普通聊天
             try
             {
-                var fallbackReply = await CallAiWithHistoryAsync(settings, systemPrompt, userInput, history);
+                var fallbackReply = await CallAiWithHistoryAsync(settings, systemPrompt, userInput, history ?? Array.Empty<ChatHistoryItem>());
                 return new AgentResponse { Reply = fallbackReply, ToolResults = Array.Empty<AgentToolResult>() };
             }
             catch (Exception fex)
@@ -421,12 +507,12 @@ public class ChatService : IChatService
         var choice = doc.RootElement.GetProperty("choices")[0];
         var message = choice.GetProperty("message");
 
-        // Check if AI called a tool
+        // 检查 AI 是否调用了工具
         if (message.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.GetArrayLength() > 0)
         {
             var toolResults = new List<AgentToolResult>();
 
-            // Add assistant message with tool_calls
+            // 将 assistant 的 tool_calls 消息追加到对话历史（OpenAI 协议要求）
             messages.Add(new
             {
                 role = "assistant",
@@ -434,7 +520,7 @@ public class ChatService : IChatService
                 tool_calls = toolCalls
             });
 
-            // Execute each tool call
+            // 逐一执行 AI 请求的工具调用
             foreach (var tc in toolCalls.EnumerateArray())
             {
                 var callId = tc.GetProperty("id").GetString() ?? "";
@@ -456,7 +542,7 @@ public class ChatService : IChatService
                     Success = true
                 });
 
-                // Add tool result message
+                // 将工具执行结果以 tool 角色追加到对话历史
                 messages.Add(new
                 {
                     role = "tool",
@@ -465,13 +551,13 @@ public class ChatService : IChatService
                 });
             }
 
-            // Send back to AI for final response
+            // 再次请求 AI：将工具执行结果告知 AI，让它生成最终的自然语言回复
             var followUpBody = new
             {
                 model,
                 messages,
                 max_tokens = 500,
-                temperature = 0.8
+                temperature = 0.8     // 最终回复使用较高温度以增加语言多样性
             };
 
             var followUpJson = JsonSerializer.Serialize(followUpBody);
@@ -499,7 +585,7 @@ public class ChatService : IChatService
             };
         }
 
-        // No tool call - AI chose not to call any function
+        // AI 选择不调用任何工具 → 返回纯文字回复 + 诊断信息
         var textContent = message.GetProperty("content").GetString();
         var diagnostics = new List<AgentToolResult>();
         diagnostics.Add(new AgentToolResult
@@ -524,6 +610,19 @@ public class ChatService : IChatService
         };
     }
 
+    // ============================================================
+    // 长期记忆提取 (ExtractMemoriesAsync)
+    // ============================================================
+
+    /// <summary>
+    /// 从一轮对话中提取值得长期记住的用户信息。
+    ///
+    /// 要求 AI 分析「用户消息 + AI 回复」对，提取用户喜好、习惯、计划等，
+    /// 返回 JSON 数组 [{"content": "...", "category": "喜好"}, ...]。
+    ///
+    /// 此方法由 ChatViewModel 在每次对话后以 fire-and-forget 方式调用，
+    /// 失败静默——不影响主聊天体验。
+    /// </summary>
     public async Task<IReadOnlyList<ExtractedMemory>> ExtractMemoriesAsync(string userMessage, string aiReply)
     {
         var settings = await settingsStore.LoadAsync();
@@ -539,12 +638,20 @@ public class ChatService : IChatService
         }
         catch (Exception ex)
         {
-            // Memory extraction fails silently — the main reply was already shown
+            // 记忆提取失败静默处理——主回复已经展示给用户
             System.Diagnostics.Debug.WriteLine($"Memory extraction failed: {ex.Message}");
             return Array.Empty<ExtractedMemory>();
         }
     }
 
+    // ============================================================
+    // 底层 AI API 调用方法
+    // ============================================================
+
+    /// <summary>
+    /// 最简单的 AI 调用：system prompt + 用户输入，无历史记录。
+    /// 使用 temperature=0.8 以产生更自然多样的回复。
+    /// </summary>
     private async Task<string> CallAiAsync(UserSettings settings, string systemPrompt, string userInput)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
@@ -584,6 +691,11 @@ public class ChatService : IChatService
         return message?.Trim() ?? "我收到了，但需要一点时间想一想。";
     }
 
+    /// <summary>
+    /// 带对话历史的 AI 调用：system prompt + 历史消息列表 + 用户输入。
+    /// 历史消息以 role/content 格式拼接在 system 和 user 之间，
+    /// 使 AI 能够参考之前的对话内容来维持上下文连贯性。
+    /// </summary>
     private async Task<string> CallAiWithHistoryAsync(UserSettings settings, string systemPrompt, string userInput, IReadOnlyList<ChatHistoryItem> history)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
@@ -634,6 +746,11 @@ public class ChatService : IChatService
         return message?.Trim() ?? "我收到了，但需要一点时间想一想。";
     }
 
+    /// <summary>
+    /// JSON 模式 AI 调用：使用 response_format: json_object 约束 AI 输出纯 JSON。
+    /// 使用 temperature=0.3 以降低 JSON 格式错误率。
+    /// 用于 JSON 指令回退模式。
+    /// </summary>
     private async Task<string> CallAiJsonModeAsync(UserSettings settings, string systemPrompt, string userInput, IReadOnlyList<ChatHistoryItem> history)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
@@ -660,8 +777,8 @@ public class ChatService : IChatService
             model,
             messages,
             max_tokens = 500,
-            temperature = 0.3,
-            response_format = new { type = "json_object" }
+            temperature = 0.3,                           // 低温度 → 更确定的 JSON 输出
+            response_format = new { type = "json_object" } // 强制 JSON 输出
         };
 
         var json = JsonSerializer.Serialize(requestBody);
@@ -685,6 +802,14 @@ public class ChatService : IChatService
         return message?.Trim() ?? "我收到了，但需要一点时间想一想。";
     }
 
+    // ============================================================
+    // 系统提示词构建 (BuildSystemPrompt)
+    // ============================================================
+
+    /// <summary>
+    /// 构建最终的 system prompt：基础提示词 + 用户自定义人设。
+    /// 人设来自设置中的 AiPersona 字段，默认使用 DefaultPersonaPrompt。
+    /// </summary>
     private static string BuildSystemPrompt(UserSettings settings, string systemPrompt)
     {
         var basePrompt = string.IsNullOrWhiteSpace(systemPrompt) ? ChatSystemPrompt : systemPrompt.Trim();
@@ -695,10 +820,24 @@ public class ChatService : IChatService
                "\n请在不违背模块设定和安全要求的前提下，尽量体现该人设。";
     }
 
+    // ============================================================
+    // 离线回复系统 (GetOfflineResponse)
+    // ============================================================
+
+    /// <summary>
+    /// AI 不可用时的离线回复策略。
+    ///
+    /// 两层匹配：
+    /// 1. 先按关键词精确匹配情绪/场景（共 15 种），返回有针对性的温暖回复
+    /// 2. 无匹配时从 20 条通用回复中随机选取一条
+    ///
+    /// 关键词匹配顺序会影响结果：更具体的情绪（如"焦虑"）排在前面。
+    /// </summary>
     private static string GetOfflineResponse(string input)
     {
         var lower = input.ToLowerInvariant();
 
+        // 按优先级匹配——更具体的情绪优先
         if (lower.Contains("累") || lower.Contains("困") || lower.Contains("疲惫") || lower.Contains("没力气"))
             return "听起来你现在很疲惫。没关系，休息也是重要的事，先给自己一点时间喘口气。";
 
@@ -741,10 +880,19 @@ public class ChatService : IChatService
         if (lower.Contains("任务") || lower.Contains("计划") || lower.Contains("安排"))
             return "好的，我可以帮你梳理任务。试着告诉我具体要做哪些事，我们一起来整理。";
 
+        // 无匹配 → 随机通用回复
         var random = new Random();
         return OfflineResponses[random.Next(OfflineResponses.Length)];
     }
 
+    // ============================================================
+    // 辅助方法
+    // ============================================================
+
+    /// <summary>
+    /// 判断用户输入是否涉及任务/植物/计时器操作。
+    /// 用于决定是否需要回退到 JSON 指令模式或切换到 Agent 管线。
+    /// </summary>
     private static bool IsTaskRelatedInput(string input)
     {
         var taskKeywords = new[] { "创建", "添加", "新建", "任务", "记一下", "帮我安排", "查看", "列出", "有哪些",
@@ -760,6 +908,12 @@ public class ChatService : IChatService
             || timerKeywords.Any(k => input.Contains(k, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// 将用户的长期记忆拼接到系统提示词中。
+    ///
+    /// AI 会在回复时自然参考这些记忆（如用户喜欢喝咖啡、有只叫咪咪的猫），
+    /// 但被明确要求"不要刻意逐条罗列"以避免机械感。
+    /// </summary>
     private static string BuildMemoryAugmentedPrompt(IReadOnlyList<string> memories)
     {
         if (memories is null || memories.Count == 0)
@@ -780,6 +934,15 @@ public class ChatService : IChatService
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 调用 AI API 进行记忆提取。
+    ///
+    /// 要求 AI 分析对话并返回 JSON 数组，每条包含：
+    /// - content: 记忆内容（简洁中文描述）
+    /// - category: 分类（喜好/兴趣/习惯/个人/计划/其他）
+    ///
+    /// 如果对话中无新信息则返回空数组。
+    /// </summary>
     private async Task<IReadOnlyList<ExtractedMemory>> CallExtractionApiAsync(UserSettings settings, string userMessage, string aiReply)
     {
         var baseUrl = (string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl).TrimEnd('/');
@@ -800,7 +963,7 @@ public class ChatService : IChatService
                 new { role = "user", content = $"用户消息：{userMessage}\n\nAI回复：{aiReply}" }
             },
             max_tokens = 300,
-            temperature = 0.3
+            temperature = 0.3    // 低温度提高提取一致性
         };
 
         var json = JsonSerializer.Serialize(requestBody);
@@ -826,6 +989,7 @@ public class ChatService : IChatService
             return Array.Empty<ExtractedMemory>();
         }
 
+        // 清理可能的 markdown 代码块包裹
         var trimmed = message.Trim();
         if (trimmed.StartsWith("```"))
         {
@@ -843,6 +1007,7 @@ public class ChatService : IChatService
             {
                 PropertyNameCaseInsensitive = true
             });
+            // 过滤掉空内容条目
             return extracted?.Where(m => !string.IsNullOrWhiteSpace(m.Content)).ToList()
                    ?? (IReadOnlyList<ExtractedMemory>)Array.Empty<ExtractedMemory>();
         }

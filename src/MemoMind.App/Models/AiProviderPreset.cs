@@ -2,12 +2,22 @@ using System.Collections.Generic;
 
 namespace MemoMind.App.Models;
 
+/// <summary>
+/// AI 提供商的预设配置，包含名称、API 地址和可用模型列表。
+/// 用于设置页面快速切换 AI 服务商，用户也可选择"自定义"手动输入。
+/// </summary>
 public class AiProviderPreset
 {
+    /// <summary>提供商显示名称，如 "OpenAI"、"DeepSeek"</summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>API 基础地址，如 "https://api.openai.com/v1"</summary>
     public string BaseUrl { get; set; } = string.Empty;
+
+    /// <summary>该提供商支持的模型列表</summary>
     public List<string> Models { get; set; } = [];
 
+    /// <summary>所有预设提供商的静态列表，包含 7 个选项（含"自定义"）</summary>
     public static readonly IReadOnlyList<AiProviderPreset> All =
     [
         new AiProviderPreset
