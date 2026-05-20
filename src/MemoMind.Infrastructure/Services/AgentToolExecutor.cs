@@ -4,6 +4,19 @@ using MemoMind.Core.Models;
 
 namespace MemoMind.Infrastructure.Services;
 
+/// <summary>
+/// AI Agent 工具执行器——将 AI 的 function call 路由到实际的本地操作。
+///
+/// 支持 11 个工具，分三大类：
+/// - 任务管理：create_task / list_tasks / update_task / delete_task
+/// - 赛博植物：care_plant / check_plant_status / switch_plant / list_plants
+/// - 计时闹钟：start_pomodoro / start_countdown / set_alarm
+///
+/// 植物状态持久化在本地 JSON 文件（%LocalAppData%/MemoMind/cyber_plant.json），
+/// 计时器命令通过写入 timer_command.json 文件传递给番茄钟 ViewModel。
+///
+/// 参数解析使用大小写不敏感的 JSON 属性名，适应不同 AI 模型的输出格式差异。
+/// </summary>
 public class AgentToolExecutor : IAgentToolExecutor
 {
     private readonly ITaskService taskService;
@@ -14,11 +27,13 @@ public class AgentToolExecutor : IAgentToolExecutor
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>数据存储根目录：%LocalAppData%/MemoMind</summary>
     private static readonly string DataFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MemoMind");
     private static readonly string PlantDataPath = Path.Combine(DataFolder, "cyber_plant.json");
     private static readonly string PlantOverridesPath = Path.Combine(DataFolder, "plant_profiles.json");
 
+    /// <summary>系统预设植物类型 → 中文名映射</summary>
     private static readonly Dictionary<string, string> SystemPlantNames = new(StringComparer.OrdinalIgnoreCase)
     {
         ["cactus"] = "仙人掌",
@@ -28,6 +43,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         ["bamboo"] = "竹子",
     };
 
+    /// <summary>系统预设植物类型 → emoji 映射</summary>
     private static readonly Dictionary<string, string> SystemPlantEmojis = new(StringComparer.OrdinalIgnoreCase)
     {
         ["cactus"] = "🌵",
@@ -37,13 +53,20 @@ public class AgentToolExecutor : IAgentToolExecutor
         ["bamboo"] = "🎋",
     };
 
+    /// <summary>自定义植物的类型前缀，如 "custom:3" 表示 Id=3 的自定义植物</summary>
     private const string CustomPlantPrefix = "custom:";
+
+    /// <summary>每次照料操作增加的数值（浇水/施肥/晒太阳统一 +3）</summary>
     private const int CareIncreaseAmount = 3;
 
     private record PlantOverrideDto(string PlantId, string? Name, string? Personality, string? SystemPrompt, bool IsDeleted);
 
     private static readonly string TimerCommandPath = Path.Combine(DataFolder, "timer_command.json");
 
+    /// <summary>
+    /// 计时器命令的 JSON 序列化模型。
+    /// 写入 timer_command.json 后由番茄钟 ViewModel 定时轮询读取并执行。
+    /// </summary>
     private class TimerCommand
     {
         public string Action { get; set; } = "";
@@ -66,6 +89,10 @@ public class AgentToolExecutor : IAgentToolExecutor
         this.customPlantService = customPlantService;
     }
 
+    /// <summary>
+    /// 工具执行路由入口。
+    /// 根据 functionName 分发到对应的操作方法。
+    /// </summary>
     public async Task<string> ExecuteToolAsync(string functionName, string argumentsJson)
     {
         return functionName switch
@@ -85,8 +112,13 @@ public class AgentToolExecutor : IAgentToolExecutor
         };
     }
 
-    // ===================== Task Tools =====================
+    // ===================== 任务工具 =====================
 
+    /// <summary>
+    /// 创建新任务。
+    /// 从 JSON 参数中提取 title/description/due_date 等，生成 TaskItem 并持久化。
+    /// 支持中文日期格式的自动解析（如 "2026-06-01 15:00"）。
+    /// </summary>
     private async Task<string> CreateTaskAsync(string argsJson)
     {
         try
@@ -135,11 +167,12 @@ public class AgentToolExecutor : IAgentToolExecutor
                 EstimatedMinutes = estimatedMinutes > 0 ? estimatedMinutes : 0,
                 Status = "Todo",
                 CreatedAt = DateTime.Now,
-                SourceType = "Agent"
+                SourceType = "Agent"        // 标记来源为 AI Agent，区别于手动创建
             };
 
             await taskService.AddAsync(task);
 
+            // 构建友好的确认消息
             var parts = new List<string>();
             if (isUrgent) parts.Add("紧急");
             if (startDate.HasValue) parts.Add($"开始：{startDate:yyyy-MM-dd HH:mm}");
@@ -155,6 +188,10 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>
+    /// 列出所有任务，以易读的中文格式返回。
+    /// 状态映射：Todo→待办 / Doing→进行中 / Done→已完成
+    /// </summary>
     private async Task<string> ListTasksAsync()
     {
         try
@@ -190,6 +227,13 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>
+    /// 更新已有任务。
+    ///
+    /// 匹配策略：通过 title 模糊匹配（双向 contains），找到第一个匹配的任务。
+    /// 仅更新 JSON 中提供了的字段（部分更新），没有提供的字段保持不变。
+    /// 支持中英文状态值（"待办"/"todo"、"进行中"/"doing"、"已完成"/"done"）。
+    /// </summary>
     private async Task<string> UpdateTaskAsync(string argsJson)
     {
         try
@@ -204,6 +248,7 @@ public class AgentToolExecutor : IAgentToolExecutor
             }
 
             var tasks = await taskService.GetAllAsync();
+            // 模糊匹配：任务标题包含关键词 或 关键词包含任务标题
             var target = tasks.FirstOrDefault(t =>
                 t.Title.Contains(title, StringComparison.OrdinalIgnoreCase) ||
                 title.Contains(t.Title, StringComparison.OrdinalIgnoreCase));
@@ -241,6 +286,7 @@ public class AgentToolExecutor : IAgentToolExecutor
 
             if (!string.IsNullOrWhiteSpace(newStatus))
             {
+                // 标准化状态值：支持中文和英文输入
                 var normalized = newStatus switch
                 {
                     "todo" or "待办" => "Todo",
@@ -253,7 +299,7 @@ public class AgentToolExecutor : IAgentToolExecutor
                     target.Status = normalized;
                     if (normalized == "Done")
                     {
-                        target.CompletedAt = DateTime.Now;
+                        target.CompletedAt = DateTime.Now;   // 自动记录完成时间
                     }
                     changes.Add($"状态→{newStatus}");
                 }
@@ -312,6 +358,9 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>
+    /// 删除任务。通过 title 模糊匹配定位目标任务。
+    /// </summary>
     private async Task<string> DeleteTaskAsync(string argsJson)
     {
         try
@@ -344,8 +393,18 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
-    // ===================== Plant Tools =====================
+    // ===================== 植物工具 =====================
 
+    /// <summary>
+    /// 照料植物：浇水/施肥/晒太阳。
+    ///
+    /// 逻辑：
+    /// 1. 如果指定了 plant_type 且与当前不同，则先切换植物
+    /// 2. 应用每日衰减（跨天未照料时自动扣减）
+    /// 3. 执行照料操作（数值 +CareIncreaseAmount，上限为 Max）
+    /// 4. 更新成长等级和心情
+    /// 5. 持久化到本地 JSON 文件
+    /// </summary>
     private async Task<string> CarePlantAsync(string argsJson)
     {
         try
@@ -363,7 +422,7 @@ public class AgentToolExecutor : IAgentToolExecutor
 
             var plant = LoadPlant();
 
-            // Resolve target plant type
+            // 解析目标植物类型
             string targetType;
             if (!string.IsNullOrWhiteSpace(plantTypeHint))
             {
@@ -379,7 +438,7 @@ public class AgentToolExecutor : IAgentToolExecutor
                 targetType = plant.PlantType;
             }
 
-            // If caring for a different plant than current, switch to it first
+            // 如果照料的不是当前植物，切换过去
             if (!string.Equals(targetType, plant.PlantType, StringComparison.OrdinalIgnoreCase))
             {
                 PersistCurrentState(plant);
@@ -394,6 +453,7 @@ public class AgentToolExecutor : IAgentToolExecutor
 
             var displayName = GetPlantDisplayName(targetType);
 
+            // 执行照料动作，回复根据成长等级变化
             string message;
             switch (action)
             {
@@ -449,6 +509,11 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>
+    /// 查看植物状态报告。
+    /// 包含水分/营养/阳光/成长等级/心情/照料建议/上次照料时间。
+    /// 支持指定 plant_type 查看非当前植物的状态。
+    /// </summary>
     private async Task<string> CheckPlantStatusAsync(string argsJson)
     {
         try
@@ -481,6 +546,7 @@ public class AgentToolExecutor : IAgentToolExecutor
                 }
                 else if (plant.PlantStates.TryGetValue(resolved, out var state))
                 {
+                    // 从保存的状态中恢复
                     targetType = resolved;
                     targetPlant = StateToPlant(state, resolved);
                 }
@@ -533,6 +599,10 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>
+    /// 切换当前植物。将当前植物状态持久化到 PlantStates 字典，然后加载目标植物。
+    /// 如果目标植物从未被照料过，使用该植物类型的预设默认值初始化。
+    /// </summary>
     private async Task<string> SwitchPlantAsync(string argsJson)
     {
         try
@@ -561,10 +631,10 @@ public class AgentToolExecutor : IAgentToolExecutor
                 return $"当前已经是{currentName}了，无需切换。";
             }
 
-            // Persist current state before switching
+            // 保存当前植物状态再切换
             PersistCurrentState(plant);
 
-            // Switch to target
+            // 加载目标植物（优先从历史状态恢复，否则初始化）
             if (!TryRestorePlantState(plant, resolved))
             {
                 InitializePlantState(plant, resolved);
@@ -586,6 +656,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>列出所有可用植物（系统预设 + 自定义），标注当前选中的植物。</summary>
     private async Task<string> ListPlantsAsync()
     {
         try
@@ -603,6 +674,7 @@ public class AgentToolExecutor : IAgentToolExecutor
                 var displayName = name;
                 var emoji = SystemPlantEmojis.GetValueOrDefault(typeId, "🌱");
 
+                // 跳过已删除的植物
                 if (overrides.TryGetValue(typeId, out var ov) && ov.IsDeleted)
                     continue;
 
@@ -630,8 +702,12 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
-    // ===================== Plant Helpers =====================
+    // ===================== 植物辅助方法 =====================
 
+    /// <summary>
+    /// 从本地 JSON 文件加载植物数据。
+    /// 如果文件不存在或损坏，创建一个默认的仙人掌。
+    /// </summary>
     private static CyberPlant LoadPlant()
     {
         try
@@ -645,7 +721,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
         catch { }
 
-        // No plant file exists yet — create a default plant
+        // 首次启动：创建默认植物（仙人掌，中等状态）
         var plant = new CyberPlant
         {
             PlantType = "cactus",
@@ -675,6 +751,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         return plant;
     }
 
+    /// <summary>将植物数据序列化写入本地 JSON 文件</summary>
     private static void SavePlant(CyberPlant plant)
     {
         try
@@ -686,6 +763,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         catch { }
     }
 
+    /// <summary>加载植物配置文件覆盖（自定义名称、人设等）</summary>
     private static Dictionary<string, PlantOverrideDto> LoadProfileOverrides()
     {
         try
@@ -705,6 +783,10 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>
+    /// 获取植物的显示名称。
+    /// 优先级：自定义名称 > 配置文件覆盖 > 系统预设名称。
+    /// </summary>
     private string GetPlantDisplayName(string plantType)
     {
         if (plantType.StartsWith(CustomPlantPrefix, StringComparison.OrdinalIgnoreCase))
@@ -726,27 +808,31 @@ public class AgentToolExecutor : IAgentToolExecutor
         return SystemPlantNames.GetValueOrDefault(plantType, plantType);
     }
 
+    /// <summary>
+    /// 解析植物类型提示词为实际的植物类型 ID。
+    /// 支持：中文名、英文 ID、部分匹配。
+    /// </summary>
     private string? ResolvePlantType(string hint)
     {
-        // Try exact match on type ID
+        // 精确匹配类型 ID
         if (SystemPlantNames.ContainsKey(hint))
             return hint;
 
-        // Try exact match on Chinese name
+        // 精确匹配中文名
         foreach (var (typeId, name) in SystemPlantNames)
         {
             if (string.Equals(name, hint, StringComparison.OrdinalIgnoreCase))
                 return typeId;
         }
 
-        // Try partial match on type ID
+        // 部分匹配类型 ID
         foreach (var typeId in SystemPlantNames.Keys)
         {
             if (typeId.Contains(hint, StringComparison.OrdinalIgnoreCase))
                 return typeId;
         }
 
-        // Try partial match on Chinese name
+        // 部分匹配中文名
         foreach (var (typeId, name) in SystemPlantNames)
         {
             if (name.Contains(hint, StringComparison.OrdinalIgnoreCase) ||
@@ -754,7 +840,7 @@ public class AgentToolExecutor : IAgentToolExecutor
                 return typeId;
         }
 
-        // Check profile overrides for custom names
+        // 配置文件覆盖名称匹配
         var overrides = LoadProfileOverrides();
         foreach (var (typeId, ov) in overrides)
         {
@@ -764,7 +850,7 @@ public class AgentToolExecutor : IAgentToolExecutor
                 return typeId;
         }
 
-        // Check custom plants
+        // 自定义植物名称匹配
         var customPlants = customPlantService.GetAllAsync().GetAwaiter().GetResult();
         foreach (var cp in customPlants)
         {
@@ -799,6 +885,10 @@ public class AgentToolExecutor : IAgentToolExecutor
         return names;
     }
 
+    /// <summary>
+    /// 每日衰减机制：如果跨天未照料，对水分/营养/阳光各做一次随机衰减。
+    /// 衰减率：10%~30% 随机，天数叠加（跨 N 天则衰减 N 次）。
+    /// </summary>
     private static void ApplyDailyDecayIfNeeded(CyberPlant plant)
     {
         var today = DateTime.Today;
@@ -822,6 +912,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         plant.LastCareDecayAt = today;
     }
 
+    /// <summary>单次衰减计算：随机扣除当前值的 10%~30%</summary>
     private static int ApplyDecay(int value, Random random)
     {
         if (value <= 0) return 0;
@@ -832,9 +923,16 @@ public class AgentToolExecutor : IAgentToolExecutor
         return Math.Max(0, value - loss);
     }
 
+    /// <summary>
+    /// 更新植物的成长等级和心情。
+    ///
+    /// 成长等级 = (水分比率 + 营养比率 + 阳光比率) / 3 * 10，0~10 级
+    /// 心情：基于最低属性比率分 5 档——超级开心/很开心/还不错/还行/缺啥说啥
+    /// 枯萎锁定：三项全归零时 IsCareLocked=true，需至少恢复到需求值以上才能解锁
+    /// </summary>
     private static void UpdateGrowthAndMood(CyberPlant plant)
     {
-        // Update care lock
+        // 枯萎锁定检测
         if (plant.WaterValue == 0 && plant.NutritionValue == 0 && plant.SunValue == 0)
         {
             plant.IsCareLocked = true;
@@ -847,14 +945,14 @@ public class AgentToolExecutor : IAgentToolExecutor
             plant.IsCareLocked = false;
         }
 
-        // Update growth
+        // 成长等级
         var avgRatio = (
             plant.WaterValue / (double)plant.MaxWater +
             plant.NutritionValue / (double)plant.MaxNutrition +
             plant.SunValue / (double)plant.MaxSun) / 3.0;
         plant.GrowthLevel = Math.Clamp((int)Math.Round(avgRatio * 10), 0, 10);
 
-        // Update mood
+        // 心情判定
         var needsWater = plant.WaterValue < plant.NeedWater;
         var needsNutrition = plant.NutritionValue < plant.NeedNutrition;
         var needsSun = plant.SunValue < plant.NeedSun;
@@ -884,6 +982,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>将当前植物状态保存到 PlantStates 字典，用于切换植物时保留状态</summary>
     private static void PersistCurrentState(CyberPlant plant)
     {
         plant.PlantStates[plant.PlantType] = new PlantCareState
@@ -914,6 +1013,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         };
     }
 
+    /// <summary>尝试从 PlantStates 字典恢复之前保存的植物状态</summary>
     private static bool TryRestorePlantState(CyberPlant plant, string plantType)
     {
         if (!plant.PlantStates.TryGetValue(plantType, out var state)) return false;
@@ -944,9 +1044,9 @@ public class AgentToolExecutor : IAgentToolExecutor
         return true;
     }
 
+    /// <summary>为新植物设置初始默认值。不同植物类型有不同的 Max 和 Need 值。</summary>
     private static void InitializePlantState(CyberPlant plant, string plantType)
     {
-        // Use sensible defaults based on plant type
         var defaults = SystemPlantNames.ContainsKey(plantType)
             ? GetPresetDefaults(plantType)
             : (MaxWater: 12, MaxNutrition: 12, MaxSun: 12, NeedWater: 6, NeedNutrition: 6, NeedSun: 6);
@@ -961,6 +1061,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         plant.NeedWater = defaults.NeedWater;
         plant.NeedNutrition = defaults.NeedNutrition;
         plant.NeedSun = defaults.NeedSun;
+        // 初始值设为最大值的 50%
         plant.WaterValue = (int)(defaults.MaxWater * 0.5);
         plant.NutritionValue = (int)(defaults.MaxNutrition * 0.5);
         plant.SunValue = (int)(defaults.MaxSun * 0.5);
@@ -986,7 +1087,7 @@ public class AgentToolExecutor : IAgentToolExecutor
     {
         var plant = new CyberPlant { PlantType = plantType };
         TryRestorePlantState(plant, plantType);
-        // Re-apply from state
+        // 二次赋值确保状态完全覆盖
         plant.PlantName = string.IsNullOrWhiteSpace(state.PlantName) ? plant.PlantName : state.PlantName;
         plant.GrowthLevel = state.GrowthLevel;
         plant.Mood = string.IsNullOrWhiteSpace(state.Mood) ? plant.Mood : state.Mood;
@@ -1003,22 +1104,30 @@ public class AgentToolExecutor : IAgentToolExecutor
         return plant;
     }
 
+    /// <summary>
+    /// 每种植物类型的预设属性值。
+    /// 不同植物有不同的特征：蕨类水分需求高(9)、竹子营养需求高(7)、向日葵阳光需求高(9)等。
+    /// </summary>
     private static (int MaxWater, int MaxNutrition, int MaxSun, int NeedWater, int NeedNutrition, int NeedSun)
         GetPresetDefaults(string plantType)
     {
         return plantType switch
         {
-            "cactus" => (14, 10, 14, 5, 4, 6),
-            "sunflower" => (14, 12, 18, 7, 6, 9),
-            "mint" => (16, 12, 12, 8, 6, 6),
-            "fern" => (18, 12, 10, 9, 6, 5),
-            "bamboo" => (18, 14, 12, 9, 7, 6),
+            "cactus" => (14, 10, 14, 5, 4, 6),       // 仙人掌：耐旱，需求低
+            "sunflower" => (14, 12, 18, 7, 6, 9),      // 向日葵：喜阳，阳光需求高
+            "mint" => (16, 12, 12, 8, 6, 6),            // 薄荷：喜水，水分需求高
+            "fern" => (18, 12, 10, 9, 6, 5),            // 蕨类：湿润环境，水分需求最高
+            "bamboo" => (18, 14, 12, 9, 7, 6),          // 竹子：营养需求最高
             _ => (12, 12, 12, 6, 6, 6)
         };
     }
 
-    // ===================== Timer Tools =====================
+    // ===================== 计时器工具 =====================
 
+    /// <summary>
+    /// 启动番茄钟：将命令写入 timer_command.json，由番茄钟 ViewModel 轮询读取。
+    /// 如果 AI 未指定参数，则使用番茄钟页面的当前设置。
+    /// </summary>
     private static async Task<string> StartPomodoroAsync(string argsJson)
     {
         try
@@ -1054,6 +1163,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>启动倒计时：支持小时+分钟+秒的组合</summary>
     private static async Task<string> StartCountdownAsync(string argsJson)
     {
         try
@@ -1092,6 +1202,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>设置闹钟：支持单次/每天/每周重复</summary>
     private static async Task<string> SetAlarmAsync(string argsJson)
     {
         try
@@ -1137,6 +1248,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
     }
 
+    /// <summary>将计时器命令写入 JSON 文件。番茄钟 ViewModel 通过文件轮询来接收 AI 发起的计时请求。</summary>
     private static void WriteTimerCommand(TimerCommand command)
     {
         try
@@ -1147,17 +1259,28 @@ public class AgentToolExecutor : IAgentToolExecutor
         }
         catch
         {
-            // Silently fail — ViewModel will pick up command when file is accessible
+            // 静默失败——ViewModel 端有文件不存在的兜底处理
         }
     }
 
-    // ===================== Tool Definitions =====================
+    // ===================== Function Calling 工具定义 =====================
 
+    /// <summary>
+    /// 构建发送给 AI 的 tools 数组，包含 11 个可用工具的函数定义。
+    ///
+    /// 每个工具定义包含：
+    /// - Name: 函数唯一标识
+    /// - Description: 函数用途 + 触发条件（指导 AI 何时调用）
+    /// - Parameters: JSON Schema 格式的参数定义（type + properties + required）
+    ///
+    /// 注意：Description 的质量直接影响 AI 的工具调用准确率，
+    /// 因此包含了中文触发词提示（如 "当用户说'创建任务'时调用"）。
+    /// </summary>
     public static IReadOnlyList<ToolDefinition> GetAvailableTools()
     {
         return new[]
         {
-            // ---- Task tools ----
+            // ---- 任务工具 ----
             new ToolDefinition
             {
                 Type = "function",
@@ -1242,7 +1365,7 @@ public class AgentToolExecutor : IAgentToolExecutor
                 }
             },
 
-            // ---- Plant tools ----
+            // ---- 植物工具 ----
             new ToolDefinition
             {
                 Type = "function",
@@ -1314,7 +1437,7 @@ public class AgentToolExecutor : IAgentToolExecutor
                 }
             },
 
-            // ---- Timer tools ----
+            // ---- 计时器工具 ----
             new ToolDefinition
             {
                 Type = "function",
@@ -1380,8 +1503,9 @@ public class AgentToolExecutor : IAgentToolExecutor
         };
     }
 
-    // ===================== JSON Helpers =====================
+    // ===================== JSON 解析辅助方法 =====================
 
+    /// <summary>安全获取字符串属性，不存在或类型不匹配时返回 null</summary>
     private static string? GetStringProperty(JsonElement element, string name)
     {
         if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String)
@@ -1391,6 +1515,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         return null;
     }
 
+    /// <summary>安全获取布尔属性</summary>
     private static bool GetBoolProperty(JsonElement element, string name)
     {
         if (element.TryGetProperty(name, out var prop) && prop.ValueKind is JsonValueKind.True or JsonValueKind.False)
@@ -1400,6 +1525,10 @@ public class AgentToolExecutor : IAgentToolExecutor
         return false;
     }
 
+    /// <summary>
+    /// 安全获取布尔值，同时支持 JSON 布尔和字符串形式。
+    /// 不同 AI 模型可能将 boolean 参数序列化为不同格式（true 或 "true"）。
+    /// </summary>
     private static bool? GetBoolOrStringProperty(JsonElement element, string name)
     {
         if (!element.TryGetProperty(name, out var prop))
@@ -1418,6 +1547,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         return null;
     }
 
+    /// <summary>安全获取整数属性，不存在或非数字时返回 0</summary>
     private static int GetIntProperty(JsonElement element, string name)
     {
         if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Number)
@@ -1428,6 +1558,7 @@ public class AgentToolExecutor : IAgentToolExecutor
         return 0;
     }
 
+    /// <summary>获取属性的 JSON 值类型（用于诊断日志）</summary>
     private static string GetJsonKind(JsonElement element, string name)
     {
         if (element.TryGetProperty(name, out var prop))
@@ -1435,8 +1566,11 @@ public class AgentToolExecutor : IAgentToolExecutor
         return "missing";
     }
 
+    // ===================== 诊断日志 =====================
+
     private static readonly string LogPath = Path.Combine(DataFolder, "agent_diag.log");
 
+    /// <summary>写入诊断日志到 agent_diag.log，用于排查 AI 工具调用问题</summary>
     private static void LogDiagnostic(string method, string message)
     {
         try
