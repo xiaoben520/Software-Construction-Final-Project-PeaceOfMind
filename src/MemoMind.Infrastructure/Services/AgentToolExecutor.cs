@@ -21,6 +21,7 @@ public class AgentToolExecutor : IAgentToolExecutor
 {
     private readonly ITaskService taskService;
     private readonly ICustomPlantService customPlantService;
+    private readonly ITaskChangeNotifier? taskChangeNotifier;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -83,10 +84,11 @@ public class AgentToolExecutor : IAgentToolExecutor
         public string? RepeatMode { get; set; }
     }
 
-    public AgentToolExecutor(ITaskService taskService, ICustomPlantService customPlantService)
+    public AgentToolExecutor(ITaskService taskService, ICustomPlantService customPlantService, ITaskChangeNotifier? taskChangeNotifier = null)
     {
         this.taskService = taskService;
         this.customPlantService = customPlantService;
+        this.taskChangeNotifier = taskChangeNotifier;
     }
 
     /// <summary>
@@ -171,6 +173,7 @@ public class AgentToolExecutor : IAgentToolExecutor
             };
 
             await taskService.AddAsync(task);
+            taskChangeNotifier?.NotifyTaskChanged();
 
             // 构建友好的确认消息
             var parts = new List<string>();
@@ -348,6 +351,7 @@ public class AgentToolExecutor : IAgentToolExecutor
 
             LogDiagnostic("UpdateTaskAsync", $"About to save: target.IsUrgent={target.IsUrgent}, changes={string.Join(",", changes)}");
             await taskService.UpdateAsync(target);
+            taskChangeNotifier?.NotifyTaskChanged();
             LogDiagnostic("UpdateTaskAsync", $"Save completed. Verifying: target.IsUrgent={target.IsUrgent}");
             return $"任务「{target.Title}」已更新：{string.Join("，", changes)}。";
         }
@@ -385,6 +389,7 @@ public class AgentToolExecutor : IAgentToolExecutor
             }
 
             await taskService.DeleteAsync(target.Id);
+            taskChangeNotifier?.NotifyTaskChanged();
             return $"任务「{target.Title}」已删除。";
         }
         catch (Exception ex)

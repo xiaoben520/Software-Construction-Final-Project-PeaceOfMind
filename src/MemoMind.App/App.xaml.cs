@@ -47,6 +47,7 @@ public partial class App : Application
         services.AddScoped<IAgentToolExecutor, AgentToolExecutor>();
         services.AddSingleton<IAppSettingsStore>(_ => new JsonAppSettingsStore(settingsFilePath));
         services.AddSingleton<IFileWorkspaceStateService>(_ => new FileWorkspaceStateService(fileWorkspaceStatePath));
+        services.AddSingleton<ITaskChangeNotifier, TaskChangeNotifier>();
         services.AddSingleton<IChatService, ChatService>();
         services.AddSingleton<MainViewModel>();
         services.AddTransient<HomeViewModel>();
