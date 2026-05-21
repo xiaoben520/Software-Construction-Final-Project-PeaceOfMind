@@ -14,8 +14,6 @@ public partial class TaskBoardView : UserControl
 
     private void OnPanelPreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
-        // Clicking blank space or non-interactive area in the panel
-        // clears TextBox focus so the watermark reappears
         var dep = e.OriginalSource as DependencyObject;
         while (dep is not null && dep != ControlPanelBorder)
         {

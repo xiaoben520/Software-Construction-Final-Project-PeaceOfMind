@@ -5,7 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:models="clr-namespace:MemoMind.App.Models"
              mc:Ignorable="d">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <ScrollViewer x:Name="MainScrollViewer" VerticalScrollBarVisibility="Auto">
         <StackPanel>
 
             <!-- ==================== Section 1: Recent Files ==================== -->
@@ -41,7 +41,8 @@
                     <ListView ItemsSource="{Binding RecentFiles}" SelectedItem="{Binding SelectedRecentFile}"
                               BorderThickness="0" MaxHeight="320"
                               Visibility="{Binding IsRecentFilesExpanded, Converter={StaticResource BoolToVisibilityConverter}}"
-                              MouseDoubleClick="RecentFiles_MouseDoubleClick">
+                              MouseDoubleClick="RecentFiles_MouseDoubleClick"
+                              PreviewMouseWheel="InnerControl_PreviewMouseWheel">
                         <ListView.ItemTemplate>
                             <DataTemplate DataType="{x:Type models:RecentFileEntry}">
                                 <Border Style="{StaticResource FileWorkspaceItemStyle}">
@@ -92,7 +93,8 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Padding="10,8" Text="{Binding NewGroupName, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,12,0" />
+                                 Margin="0,0,12,0" Tag="请输入分组"
+                                 Style="{StaticResource WatermarkTextBoxStyle}" />
                         <Button Grid.Column="1" Content="＋ 新建分组" Padding="14,8"
                                 Style="{StaticResource FileWorkspaceActionButtonStyle}"
                                 Command="{Binding AddGroupCommand}" />
@@ -145,7 +147,8 @@
                                         <!-- Root Items (TreeView for multi-level expand/collapse) -->
                                         <TreeView ItemsSource="{Binding RootItems}" Margin="4,4,4,4"
                                                   TreeViewItem.Expanded="WorkspaceTreeItem_Expanded"
-                                                  BorderThickness="0" Background="Transparent">
+                                                  BorderThickness="0" Background="Transparent"
+                                                  PreviewMouseWheel="InnerControl_PreviewMouseWheel">
                                             <TreeView.ItemContainerStyle>
                                                 <Style TargetType="TreeViewItem">
                                                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
@@ -247,7 +250,8 @@
                                       SelectedItemChanged="FileManagerTree_SelectedItemChanged"
                                       TreeViewItem.Expanded="FileManagerTreeItem_Expanded"
                                       TreeViewItem.Collapsed="FileManagerTreeItem_Collapsed"
-                                      BorderThickness="0" Background="Transparent">
+                                      BorderThickness="0" Background="Transparent"
+                                      PreviewMouseWheel="InnerControl_PreviewMouseWheel">
                                 <TreeView.ItemContainerStyle>
                                     <Style TargetType="TreeViewItem">
                                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />

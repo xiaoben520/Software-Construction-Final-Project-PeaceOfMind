@@ -12,11 +12,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MemoMind.App.ViewModels;
 
-public class PomodoroAlarmViewModel : ViewModelBase, ISettingsAwareViewModel
+public class PomodoroAlarmViewModel : ViewModelBase, ISettingsAwareViewModel, IPageLifecycleAware
 {
     private readonly SoundService soundService;
     private readonly DispatcherTimer tickTimer;
     private readonly string alarmsFilePath;
+    private readonly string timerCommandPath;
 
     // ─── Settings ──────────────────────────
     private bool pomodoroSoundEnabled = true;
@@ -67,6 +68,7 @@ public class PomodoroAlarmViewModel : ViewModelBase, ISettingsAwareViewModel
 
         var appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MemoMind");
         alarmsFilePath = Path.Combine(appData, "alarms.json");
+        timerCommandPath = Path.Combine(appData, "timer_command.json");
 
         Alarms = new ObservableCollection<AlarmItem>();
         LoadAlarms();
@@ -642,6 +644,9 @@ public class PomodoroAlarmViewModel : ViewModelBase, ISettingsAwareViewModel
     {
         var now = DateTime.Now;
 
+        // Check for agent timer commands
+        TryProcessTimerCommand();
+
         // Pomodoro countdown
         if (isRunning && remainingSeconds > 0)
         {
@@ -679,6 +684,146 @@ public class PomodoroAlarmViewModel : ViewModelBase, ISettingsAwareViewModel
                 }
             }
         }
+    }
+
+    // ═══════════════════════════════════════
+    //  Agent Timer Commands
+    // ═══════════════════════════════════════
+
+    private void TryProcessTimerCommand()
+    {
+        try
+        {
+            if (!File.Exists(timerCommandPath)) return;
+
+            var json = File.ReadAllText(timerCommandPath);
+            var command = JsonSerializer.Deserialize<TimerCommandDto>(json);
+            if (command is null) return;
+
+            switch (command.Action)
+            {
+                case "start_pomodoro":
+                    ProcessStartPomodoro(command);
+                    break;
+                case "start_countdown":
+                    ProcessStartCountdown(command);
+                    break;
+                case "set_alarm":
+                    ProcessSetAlarm(command);
+                    break;
+            }
+
+            // Delete command file after successful processing
+            try { File.Delete(timerCommandPath); } catch { }
+        }
+        catch
+        {
+            // Will retry on next tick
+        }
+    }
+
+    private void ProcessStartPomodoro(TimerCommandDto cmd)
+    {
+        // Reset pomodoro first
+        isRunning = false;
+        IsRunning = false;
+        isWorkMode = true;
+        IsWorkMode = true;
+        currentCycle = 1;
+        CurrentCycle = currentCycle;
+
+        // Apply custom settings if provided
+        if (cmd.WorkMinutes > 0) WorkMinutes = cmd.WorkMinutes;
+        if (cmd.BreakMinutes > 0) BreakMinutes = cmd.BreakMinutes;
+        if (cmd.Cycles > 0) CycleCount = cmd.Cycles;
+
+        remainingSeconds = workMinutes * 60;
+        UpdatePomodoroDisplay();
+
+        // Start the pomodoro
+        isRunning = true;
+        IsRunning = true;
+    }
+
+    private void ProcessStartCountdown(TimerCommandDto cmd)
+    {
+        // Stop any existing countdown
+        isCountdownRunning = false;
+
+        CountdownHours = cmd.Hours;
+        CountdownMinutes = cmd.Minutes;
+        CountdownSeconds = cmd.Seconds;
+
+        // Sync and validate
+        SyncCountdownTarget();
+
+        if (countdownRemaining <= 0)
+        {
+            countdownRemaining = 60; // Default to 1 minute
+            UpdateCountdownDisplay();
+        }
+
+        // Start countdown
+        isCountdownRunning = true;
+        OnPropertyChanged(nameof(CountdownStartPauseText));
+    }
+
+    private void ProcessSetAlarm(TimerCommandDto cmd)
+    {
+        var alarm = new AlarmItem
+        {
+            Name = cmd.Name ?? "闹钟",
+            Hour = cmd.Hour,
+            Minute = cmd.Minute,
+            Message = cmd.Message ?? string.Empty,
+            RepeatMode = cmd.RepeatMode?.ToLowerInvariant() switch
+            {
+                "daily" => AlarmRepeatMode.Daily,
+                "weekly" => AlarmRepeatMode.Weekly,
+                _ => AlarmRepeatMode.Once
+            }
+        };
+
+        Alarms.Add(alarm);
+        SaveAlarms();
+    }
+
+    public Task OnNavigatedToAsync()
+    {
+        // Reload alarms from file — Agent may have modified it
+        try
+        {
+            if (File.Exists(alarmsFilePath))
+            {
+                var json = File.ReadAllText(alarmsFilePath);
+                var loaded = JsonSerializer.Deserialize<List<AlarmItem>>(json);
+                if (loaded is not null)
+                {
+                    Alarms.Clear();
+                    foreach (var alarm in loaded)
+                        Alarms.Add(alarm);
+                }
+            }
+        }
+        catch { }
+
+        return Task.CompletedTask;
+    }
+
+    private class TimerCommandDto
+    {
+        public string Action { get; set; } = "";
+        public int WorkMinutes { get; set; }
+        public int BreakMinutes { get; set; }
+        public int Cycles { get; set; }
+        public int Hours { get; set; }
+        public int Minutes { get; set; }
+        public int Seconds { get; set; }
+        public string? Name { get; set; }
+        public int Hour { get; set; }
+        public int Minute { get; set; }
+        public string? Message { get; set; }
+        public string? RepeatMode { get; set; }
     }
 
     // ═══════════════════════════════════════
