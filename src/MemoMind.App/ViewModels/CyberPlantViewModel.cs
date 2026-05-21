@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MemoMind.App.ViewModels;
 
-public class CyberPlantViewModel : ViewModelBase, ISettingsAwareViewModel, IPageLifecycleAware
+public class CyberPlantViewModel : ViewModelBase, ISettingsAwareViewModel
 {
     private readonly IChatService? chatService;
     private readonly ICustomPlantService customPlantService;
@@ -488,7 +488,6 @@ public class CyberPlantViewModel : ViewModelBase, ISettingsAwareViewModel, IPage
         UpdateStatus();
     }
 
-
     public async Task ResetAllDataAsync()
     {
         try
@@ -532,35 +531,6 @@ public class CyberPlantViewModel : ViewModelBase, ISettingsAwareViewModel, IPage
         SavePlant();
 
         StatusMessage = "赛博植物已恢复默认设定。";
-}
-    public Task OnNavigatedToAsync()
-    {
-        // Reload plant from JSON — Agent may have modified it via chat
-        var fresh = LoadPlant();
-        if (fresh is not null)
-        {
-            EnsurePlantDefaults(fresh);
-            plant = fresh;
-
-            if (plant.PlantStates.TryGetValue(plant.PlantType, out var state))
-            {
-                ApplyState(state);
-            }
-
-            ApplyDailyDecayIfNeeded();
-            EnsureDailyChatReset();
-            UpdatePlantImageSource();
-            UpdateStatus();
-
-            Messages.Clear();
-            foreach (var msg in plant.Messages)
-            {
-                Messages.Add(msg);
-            }
-        }
-
-        return Task.CompletedTask;
-
     }
 
     private void SelectPlant(PlantListItem? item)
