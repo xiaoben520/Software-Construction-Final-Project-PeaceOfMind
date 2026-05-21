@@ -27,6 +27,11 @@
                 <ListBox x:Name="ChatListBox" ItemsSource="{Binding Messages}" BorderThickness="0" Background="Transparent" Margin="0,8,0,0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid Margin="0,0,0,12">
@@ -37,7 +42,7 @@
                                         Padding="12,8"
                                         Background="{DynamicResource ListItemBrush}"
                                         CornerRadius="4,14,14,14"
-                                        MaxWidth="320"
+                                        MaxWidth="700"
                                         Visibility="{Binding IsUserMessage, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}">
                                     <StackPanel>
                                         <DockPanel Margin="0,0,0,4">
@@ -55,7 +60,7 @@
                                         Padding="12,8"
                                         Background="#4A90D9"
                                         CornerRadius="14,4,14,14"
-                                        MaxWidth="320"
+                                        MaxWidth="700"
                                         Visibility="{Binding IsUserMessage, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <StackPanel>
                                         <DockPanel Margin="0,0,0,4">
