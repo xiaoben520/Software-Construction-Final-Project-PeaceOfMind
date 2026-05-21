@@ -176,9 +176,9 @@ public class ChatService : IChatService
             // 拼接工具定义和强制调用规则——这是 prompt 工程的核心：明确告诉 AI 何时必须调用工具
             basePrompt += "\n\n## 任务管理工具\n" +
                           "你可以调用以下函数来真正操作任务（不是假装操作）：\n" +
-                          "- create_task: 创建新任务（参数：title必填, description选填, start_date选填, due_date选填, estimated_hours选填, estimated_minutes选填, is_urgent选填）\n" +
+                          "- create_task: 创建新任务（参数：title必填, description选填, due_date选填, is_urgent选填）\n" +
                           "- list_tasks: 查看所有任务\n" +
-                          "- update_task: 更新任务（参数：title必填用于查找, new_title选填, description选填, status选填, is_urgent选填, start_date选填, due_date选填, estimated_hours选填, estimated_minutes选填）\n" +
+                          "- update_task: 更新任务状态/标题/紧急度（参数：title必填用于查找）\n" +
                           "- delete_task: 删除任务（参数：title必填用于查找）\n" +
                           "\n## 赛博植物工具\n" +
                           "你可以调用以下函数来照顾用户的植物伙伴：\n" +
@@ -290,7 +290,7 @@ public class ChatService : IChatService
 
         // 构造 JSON 指令 prompt：明确指定输出格式和所有可用操作
         var basePrompt = BuildMemoryAugmentedPrompt(memories);
-        basePrompt += "\n\n## 操作协议（必须严格遵守）\n" +
+        basePrompt += "\n\n## 任务操作协议（必须严格遵守）\n" +
             "你需要用一个 JSON 对象来回复，格式如下：\n\n" +
             "{\n" +
             "  \"action\": \"create_task\",\n" +
@@ -314,9 +314,9 @@ public class ChatService : IChatService
             "start_countdown args: hours(选填), minutes(选填), seconds(选填)，须至少一个大于0\n" +
             "set_alarm args: hour(必填，0-23), minute(必填，0-59), name(选填), message(选填), repeat_mode(选填，once/daily/weekly)\n" +
             "\n【关键规则】\n" +
-            "1. 如果用户要求操作任务或照料植物，action 填对应的操作名，args 填从用户消息中提取的真实参数\n" +
+            "1. 如果用户要求操作任务（创建/查看/更新/删除），action 填对应的操作名，args 填从用户消息中提取的真实参数\n" +
             "2. 如果用户只是聊天/倾诉，action 填 \"none\"，args 填 {}\n" +
-            "3. 所有参数必须是用户原话中提到的真实内容，绝不可以用占位符\n" +
+            "3. title 必须是用户原话中提到的真实内容，绝不可以用占位符\n" +
             "4. reply 用自然友好的中文回复用户\n" +
             "5. 只输出纯 JSON，不要包含 markdown 代码块标记或其他任何文字";
 
