@@ -77,8 +77,31 @@
                              Text="{Binding AiBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="API Key" />
-                    <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" Padding="10,6"
-                             Text="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged}" />
+                    <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox Grid.Column="0" Padding="10,6"
+                                 Text="{Binding ApiKeyInput, UpdateSourceTrigger=PropertyChanged}"
+                                 Visibility="{Binding IsEditingApiKey, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                        <TextBox Grid.Column="0" Padding="10,6" IsReadOnly="True"
+                                 Background="{DynamicResource ListItemBrush}"
+                                 Text="{Binding ApiKeyDisplay, Mode=OneWay}"
+                                 Visibility="{Binding IsEditingApiKey, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}" />
+
+                        <Button Grid.Column="1" Content="完成" Width="64" Height="28" Margin="8,0,0,0"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                Command="{Binding ConfirmApiKeyEditCommand}"
+                                Visibility="{Binding IsEditingApiKey, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                        <Button Grid.Column="1" Content="重新输入" Width="64" Height="28" Margin="8,0,0,0"
+                                Style="{StaticResource SidebarButtonStyle}"
+                                Command="{Binding StartEditApiKeyCommand}"
+                                Visibility="{Binding IsEditingApiKey, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}" />
+                    </Grid>
 
                     <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Top" Text="AI 人设" />
                     <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" Padding="10,6" Height="90"

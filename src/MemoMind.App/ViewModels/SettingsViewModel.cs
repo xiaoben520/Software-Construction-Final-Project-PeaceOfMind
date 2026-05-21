@@ -18,6 +18,8 @@ public class SettingsViewModel : ViewModelBase
     private bool hasUnsavedChanges;
     private bool isLoading;
     private string apiKey = string.Empty;
+    private string apiKeyInput = string.Empty;
+    private bool isEditingApiKey;
     private string aiBaseUrl = "https://api.openai.com/v1";
     private string aiModel = "deepseek-chat";
     private string aiPersona = "你是一个温和、会倾听、会整理事项的 AI 心灵伙伴。说话简洁、友好、有共情，优先帮用户把事情理清。";
@@ -56,6 +58,8 @@ public class SettingsViewModel : ViewModelBase
         LoadCommand = new RelayCommand(_ => Load());
         DeleteDatabaseCommand = new RelayCommand(_ => DeleteDatabase());
         BrowseSoundCommand = new RelayCommand(_ => BrowseSoundFile());
+        StartEditApiKeyCommand = new RelayCommand(_ => StartEditApiKey());
+        ConfirmApiKeyEditCommand = new RelayCommand(_ => CommitApiKeyEdit());
         _ = LoadAsync();
     }
 
@@ -65,6 +69,29 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             apiKey = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ApiKeyDisplay));
+        }
+    }
+
+    public string ApiKeyInput
+    {
+        get => apiKeyInput;
+        set
+        {
+            apiKeyInput = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string ApiKeyDisplay => GetMaskedApiKey(apiKey);
+
+    public bool IsEditingApiKey
+    {
+        get => isEditingApiKey;
+        set
+        {
+            isEditingApiKey = value;
             OnPropertyChanged();
         }
     }
@@ -190,6 +217,8 @@ public class SettingsViewModel : ViewModelBase
     public ICommand SaveCommand { get; }
     public ICommand LoadCommand { get; }
     public ICommand DeleteDatabaseCommand { get; }
+    public ICommand StartEditApiKeyCommand { get; }
+    public ICommand ConfirmApiKeyEditCommand { get; }
 
     public ObservableCollection<string> ThemeOptions { get; }
     public ObservableCollection<AiProviderPreset> ProviderOptions { get; }
@@ -304,6 +333,8 @@ public class SettingsViewModel : ViewModelBase
         {
             var settings = await settingsStore.LoadAsync();
             ApiKey = settings.ApiKey;
+            ApiKeyInput = string.Empty;
+            IsEditingApiKey = false;
             AiBaseUrl = string.IsNullOrWhiteSpace(settings.AiBaseUrl) ? "https://api.openai.com/v1" : settings.AiBaseUrl;
             AiModel = string.IsNullOrWhiteSpace(settings.AiModel) ? "deepseek-chat" : settings.AiModel;
             AiPersona = string.IsNullOrWhiteSpace(settings.AiPersona)
@@ -374,6 +405,11 @@ public class SettingsViewModel : ViewModelBase
 
     private async Task SaveAsync()
     {
+        if (!ApplyApiKeyInputIfEditing())
+        {
+            return;
+        }
+
         var settings = new UserSettings
         {
             ApiKey = ApiKey,
@@ -407,6 +443,51 @@ public class SettingsViewModel : ViewModelBase
 
         StatusMessage = "设置已保存。";
         HasUnsavedChanges = false;
+    }
+
+    private void StartEditApiKey()
+    {
+        IsEditingApiKey = true;
+        ApiKeyInput = string.Empty;
+        StatusMessage = "请输入新的 API Key，保存后仅显示后四位。";
+    }
+
+    private void CommitApiKeyEdit()
+    {
+        ApplyApiKeyInputIfEditing();
+    }
+
+    private bool ApplyApiKeyInputIfEditing()
+    {
+        if (!IsEditingApiKey)
+        {
+            return true;
+        }
+
+        var trimmed = (ApiKeyInput ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            StatusMessage = "API Key 不能为空。";
+            return false;
+        }
+
+        ApiKey = trimmed;
+        ApiKeyInput = string.Empty;
+        IsEditingApiKey = false;
+        StatusMessage = "API Key 已更新，保存设置后生效。";
+        return true;
+    }
+
+    private static string GetMaskedApiKey(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "未设置";
+        }
+
+        var visibleCount = Math.Min(4, value.Length);
+        var maskedCount = value.Length - visibleCount;
+        return new string('*', maskedCount) + value[^visibleCount..];
     }
 
     private void Save()
